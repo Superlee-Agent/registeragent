@@ -212,6 +212,12 @@ export function EnhancedAgentOrchestrator() {
       if (aiAnalysisResult.status === 'fulfilled' && aiAnalysisResult.value?.success) {
         aiResult = aiAnalysisResult.value.analysis;
         aiRecommendation = aiAnalysisResult.value.recommendation;
+        // Prefer displaying the single preset answer block from classification
+        // It contains the exact chosen answer text from the 12 options
+        // e.g., "Answer 4: ..."
+        const classification = aiAnalysisResult.value.classification;
+        // Stash for potential later use
+        (aiResult as any)._classification = classification;
         setLastAIResult(aiResult);
         setLastAIRec(aiRecommendation);
       } else {
@@ -227,17 +233,16 @@ export function EnhancedAgentOrchestrator() {
       let ipText = "";
 
       if (aiResult && aiRecommendation) {
-        const isHighConfidenceAI = aiResult.aiDetection.isAIGenerated && aiResult.aiDetection.confidence >= 0.85;
-        const mainTitle = isHighConfidenceAI ? '🤖 AI Content' : '✨ Great Work';
-        const subtitle = isHighConfidenceAI ? 'This looks like it was made by AI' : 'Looks human-made';
-        // Policy override: Human-created defaults to Commercial Remix
-        const primaryPolicy = !aiResult.aiDetection.isAIGenerated ? 'remix' : aiResult.licenseRecommendation.primary;
-        const nextAction = primaryPolicy === 'commercial'
-          ? 'Sell (Commercial License)'
-          : primaryPolicy === 'remix'
-          ? 'Register Remix License'
-          : 'Share for Free';
-        ipText = `${mainTitle}\n${subtitle}`;
+        const preset = (aiResult as any)._classification;
+        if (preset?.text) {
+          // Show the exact single answer block text
+          ipText = String(preset.text);
+        } else {
+          const isHighConfidenceAI = aiResult.aiDetection.isAIGenerated && aiResult.aiDetection.confidence >= 0.85;
+          const mainTitle = isHighConfidenceAI ? '🤖 AI Content' : '✨ Great Work';
+          const subtitle = isHighConfidenceAI ? 'This looks like it was made by AI' : 'Looks human-made';
+          ipText = `${mainTitle}\n${subtitle}`;
+        }
 
       } else {
         // Fallback to basic analysis with more detailed error info
@@ -613,7 +618,7 @@ License Type: ${result.licenseType}`;
         const st = lastAIResult.licenseRecommendation.suggestedTerms;
 
         // Build message text as requested
-        const header = 'Superlee recommendation applied 🎉';
+        const header = 'Superlee recommendation applied ���';
         const humanLine = isHuman ? '✅ Human content detected' : '🤖 AI content detected';
         const core = `License: Commercial Remix\nCommercial use: Yes\nDerivatives: Yes`;
         const msg = `${header}\n\n${humanLine}\n\n${core}`;
