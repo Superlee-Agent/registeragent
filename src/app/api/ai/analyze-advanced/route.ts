@@ -33,26 +33,34 @@ export async function POST(req: Request) {
     let detector: AdvancedAIDetectionWithLearningControl | null = null;
 
     try {
-      // Try advanced analysis first
+      // Prefer simplified preset classification flow for immediate decisioning
       detector = new AdvancedAIDetectionWithLearningControl();
-      analysis = await detector.analyzeImage(finalImageUrl);
+      const preset = await detector.analyzeImagePreset(finalImageUrl);
+      analysis = preset.analysis;
       simpleRecommendation = detector.getSimpleRecommendationWithAIControl(analysis);
+      // Attach classification marker
+      analysis.content.tags = Array.from(new Set([...(analysis.content.tags || []), `Preset-Answer-${preset.classification.id}`]));
     } catch (advancedError) {
-      console.warn("Advanced analysis failed, trying fallback:", advancedError);
+      console.warn("Preset classification failed, trying legacy advanced analysis:", advancedError);
 
       try {
-        // Fallback to simpler analysis (conservative)
-        const fallbackDetector = new FallbackAIDetection();
-        const fallbackResult = await fallbackDetector.analyzeImageBasic(finalImageUrl);
-        analysis = fallbackResult.analysis;
-        simpleRecommendation = fallbackResult.recommendation;
-
-        // Add fallback indicator
-        analysis.content.tags.push("Fallback-Analysis");
-        simpleRecommendation.message += " (using fallback analysis)";
-      } catch (fallbackError) {
-        console.error("Both advanced and fallback analysis failed:", fallbackError);
-        throw new Error(`Analysis failed: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`);
+        // Legacy advanced analysis as fallback
+        detector = detector || new AdvancedAIDetectionWithLearningControl();
+        analysis = await detector.analyzeImage(finalImageUrl);
+        simpleRecommendation = detector.getSimpleRecommendationWithAIControl(analysis);
+      } catch (legacyError) {
+        console.warn("Advanced analysis failed, trying basic fallback:", legacyError);
+        try {
+          const fallbackDetector = new FallbackAIDetection();
+          const fallbackResult = await fallbackDetector.analyzeImageBasic(finalImageUrl);
+          analysis = fallbackResult.analysis;
+          simpleRecommendation = fallbackResult.recommendation;
+          analysis.content.tags.push("Fallback-Analysis");
+          simpleRecommendation.message += " (using fallback analysis)";
+        } catch (fallbackError) {
+          console.error("All analysis strategies failed:", fallbackError);
+          throw new Error(`Analysis failed: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`);
+        }
       }
     }
 
