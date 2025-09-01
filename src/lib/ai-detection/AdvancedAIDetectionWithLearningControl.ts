@@ -192,6 +192,10 @@ Return ONLY valid JSON.`
           // Origin -> AI flag
           const isAI = origin === 'ai';
           enhancedAnalysis.aiDetection.isAIGenerated = isAI;
+          // Normalize confidence to match unified origin to avoid contradictory UI
+          const prevConf = Number(enhancedAnalysis.aiDetection.confidence || 0);
+          enhancedAnalysis.aiDetection.confidence = isAI ? Math.max(0.85, prevConf) : 0;
+
           enhancedAnalysis.licenseRecommendation.aiLearningAllowed = !isAI;
           enhancedAnalysis.licenseRecommendation.suggestedTerms.aiTrainingRestricted = isAI || ai_training === 'not allowed';
           enhancedAnalysis.aiDetection.learningRestriction = isAI ? 'disabled' : 'enabled';
