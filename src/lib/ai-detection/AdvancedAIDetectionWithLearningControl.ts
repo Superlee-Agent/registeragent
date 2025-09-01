@@ -177,13 +177,85 @@ Return ONLY valid JSON.`
       } catch {}
 
       // Enhance analysis with business logic
-      const enhancedAnalysis = this.enhanceAnalysisWithAIControls(analysis);
+      let enhancedAnalysis = this.enhanceAnalysisWithAIControls(analysis);
+
+      // Unified validator prompt mapping
+      try {
+        const v = await this.validateWithUnifiedPrompt(imageUrl);
+        if (v) {
+          const origin = String(v.origin || '').toLowerCase();
+          const content = String(v.content || '').toLowerCase();
+          const decision = String(v.decision || '').toLowerCase();
+          const ai_training = String(v.ai_training || '').toLowerCase();
+
+          // Origin -> AI flag
+          const isAI = origin === 'ai';
+          enhancedAnalysis.aiDetection.isAIGenerated = isAI;
+          enhancedAnalysis.licenseRecommendation.aiLearningAllowed = !isAI;
+          enhancedAnalysis.licenseRecommendation.suggestedTerms.aiTrainingRestricted = isAI || ai_training === 'not allowed';
+          enhancedAnalysis.aiDetection.learningRestriction = isAI ? 'disabled' : 'enabled';
+
+          // Content flags
+          enhancedAnalysis.content.containsHumanFace = content.includes('human_face');
+          enhancedAnalysis.content.famousPersonDetected = content === 'human_face_famous';
+          enhancedAnalysis.content.famousBrandOrCharacterDetected = content === 'brand_or_character';
+
+          // Eligibility and requirements
+          if (decision.includes('block') || enhancedAnalysis.content.famousBrandOrCharacterDetected || enhancedAnalysis.content.famousPersonDetected) {
+            enhancedAnalysis.ipEligibility.isEligible = false;
+            if (enhancedAnalysis.content.famousBrandOrCharacterDetected && !enhancedAnalysis.ipEligibility.reasons.includes('Contains famous brand/character')) {
+              enhancedAnalysis.ipEligibility.reasons.push('Contains famous brand/character');
+            }
+            if (enhancedAnalysis.content.famousPersonDetected && !enhancedAnalysis.ipEligibility.reasons.includes('Contains celebrity face')) {
+              enhancedAnalysis.ipEligibility.reasons.push('Contains celebrity face');
+            }
+          } else {
+            enhancedAnalysis.ipEligibility.isEligible = true;
+          }
+          if (decision.includes('selfie')) {
+            if (!enhancedAnalysis.ipEligibility.requirements.includes('Selfie verification required')) {
+              enhancedAnalysis.ipEligibility.requirements.push('Selfie verification required');
+            }
+            enhancedAnalysis.content.containsHumanFace = true;
+            enhancedAnalysis.content.famousPersonDetected = false;
+          }
+
+          // License primary and terms
+          enhancedAnalysis.licenseRecommendation.primary = 'remix';
+          enhancedAnalysis.licenseRecommendation.suggestedTerms.derivativesAllowed = true;
+          enhancedAnalysis.licenseRecommendation.suggestedTerms.commercialUse = true;
+        }
+      } catch {}
 
       console.log(`🔍 Advanced AI Analysis with Learning Control:`, enhancedAnalysis);
       return enhancedAnalysis;
     } catch (error) {
       console.error("Error analyzing image:", error);
       throw error;
+    }
+  }
+
+  private async validateWithUnifiedPrompt(imageUrl: string): Promise<{ origin: string; content: string; decision: string; ai_training: string } | null> {
+    try {
+      const prompt = `You are an IP registration validator. Analyze the attached image and answer in strict JSON format only. Do not explain. Follow the rules strictly:\n\n1. Detect if the image is AI-generated or human-made. Answer only "AI" or "Human".\n2. Detect if the image contains:\n   - a famous person’s face\n   - a brand logo or trademark\n   - a famous/popular fictional character (cartoon, anime, movie, etc.)\n   - a human face (not famous)\n   - no human face at all\n3. Decide if the image can be registered as IP:\n   - If AI-generated with no human face and no famous brand/character → "smart license (commercial remix)"\n   - If AI-generated with a non-famous human face → "smart license (commercial remix, selfie verification required)"\n   - If AI-generated with famous face/brand/character → "block"\n   - If Human-made with no human face and no famous brand/character → "smart license (commercial remix)"\n   - If Human-made with a non-famous human face → "smart license (commercial remix, selfie verification required)"\n   - If Human-made with famous face/brand/character → "block"\n4. AI training rules:\n   - All AI-generated images → "ai_training": "not allowed"\n   - Human-made images with no human face → "ai_training": "manual (user decides)"\n   - Human-made images with a non-famous human face → "ai_training": "manual (user decides)"\n\nReturn output ONLY in JSON like this:\n{\n  "origin": "AI/Human",\n  "content": "no_face / human_face_non_famous / human_face_famous / brand_or_character",\n  "decision": "smart license (commercial remix)" OR "smart license (commercial remix, selfie verification required)" OR "block",\n  "ai_training": "not allowed" OR "manual (user decides)"\n}`;
+      const resp = await this.openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "user", content: [ { type: "text", text: prompt }, { type: "image_url", image_url: { url: imageUrl } } ] }
+        ],
+        max_tokens: 300,
+        temperature: 0.1,
+        response_format: { type: "json_object" }
+      });
+      const j = JSON.parse(resp.choices[0]?.message?.content || '{}');
+      return {
+        origin: String(j.origin || ''),
+        content: String(j.content || ''),
+        decision: String(j.decision || ''),
+        ai_training: String(j.ai_training || ''),
+      };
+    } catch {
+      return null;
     }
   }
 
