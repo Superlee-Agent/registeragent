@@ -136,6 +136,20 @@ Return ONLY valid JSON.`
         if (typeof ents.logoPresent === 'boolean') analysis.content.logoPresent = analysis.content.logoPresent || ents.logoPresent;
         if (!analysis.content.famousPersonDetected && analysis.content.detectedCelebrities?.length > 0) analysis.content.famousPersonDetected = true;
         if (!analysis.content.famousBrandOrCharacterDetected && ((analysis.content.detectedBrands?.length||0) > 0 || (analysis.content.detectedCharacters?.length||0) > 0 || analysis.content.logoPresent)) analysis.content.famousBrandOrCharacterDetected = true;
+
+        // Third pass: caption + entity from "what is this?" prompt
+        const cap = await this.detectCaptionEntities(imageUrl);
+        if (cap) {
+          const capText = `${cap.caption || ''} ${(cap.entities || []).join(' ')}`.toLowerCase();
+          const celebHints = ['elon musk','taylor swift','cristiano ronaldo','lionel messi','barack obama','beyonce','rihanna','selena gomez','donald trump','bill gates','mark zuckerberg'];
+          const brandHints = ['nike','disney','mickey','mickey mouse','batman','superman','spiderman','spider-man','marvel','dc','apple','tesla','coca-cola','mcdonalds','mcdonald\'s','starbucks'];
+          if (!analysis.content.famousPersonDetected && celebHints.some(n => capText.includes(n))) analysis.content.famousPersonDetected = true;
+          if (!analysis.content.famousBrandOrCharacterDetected && brandHints.some(n => capText.includes(n))) analysis.content.famousBrandOrCharacterDetected = true;
+          // Merge entities into detected lists
+          const norm = (arr?: string[]) => (Array.isArray(arr) ? arr : []).map(s => String(s)).filter(Boolean);
+          analysis.content.detectedCelebrities = Array.from(new Set([...(analysis.content.detectedCelebrities||[]), ...norm(cap.entities).filter(e => celebHints.some(h => e.toLowerCase().includes(h)))]));
+          analysis.content.detectedCharacters = Array.from(new Set([...(analysis.content.detectedCharacters||[]), ...norm(cap.entities).filter(e => brandHints.some(h => e.toLowerCase().includes(h)))]));
+        }
       } catch {}
 
       // Enhance analysis with business logic
@@ -178,6 +192,30 @@ If none, use [] and false. Respond ONLY JSON.` },
       };
     } catch {
       return { celebrities: [], brands: [], characters: [], logoPresent: false };
+    }
+  }
+
+  private async detectCaptionEntities(imageUrl: string): Promise<{ entities: string[]; caption: string } | null> {
+    try {
+      const resp = await this.openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: `What is this image? Provide a short caption and list any named entities (people, brands/logos, or fictional characters) you recognize. Return STRICT JSON: {"caption": string, "entities": string[]}. Only JSON.` },
+              { type: "image_url", image_url: { url: imageUrl } }
+            ]
+          }
+        ],
+        max_tokens: 200,
+        temperature: 0.1,
+        response_format: { type: "json_object" }
+      });
+      const j = JSON.parse(resp.choices[0]?.message?.content || '{}');
+      return { caption: String(j.caption || ''), entities: Array.isArray(j.entities) ? j.entities.map(String) : [] };
+    } catch {
+      return null;
     }
   }
 
