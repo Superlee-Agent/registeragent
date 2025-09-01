@@ -50,6 +50,13 @@ Return JSON only with keys: isAIGenerated, confidence, qualityScore, ipEligible,
       let ipEligible = typeof result.ipEligible === 'boolean' ? result.ipEligible : computedScore >= 60;
       if (computedScore >= 60 && !isAIGenerated) ipEligible = true; // keep consistent
 
+      // Policy: human-created defaults to Commercial Remix
+      const primary: 'commercial' | 'nonCommercial' | 'remix' = isAIGenerated ? (result.recommendedLicense || 'nonCommercial') : 'remix';
+      const mintingFee = primary === 'remix' ? (score > 5 ? 50 : 0) : (primary === 'commercial' ? 50 : 0);
+      const commercialRevShare = primary === 'remix' ? 10 : (primary === 'commercial' ? 10 : 0);
+      const derivativesAllowed = primary === 'remix';
+      const commercialUse = primary === 'remix' || primary === 'commercial';
+
       // Convert simple result to advanced format
       const analysis: AdvancedAnalysisResult = {
         aiDetection: {
@@ -83,19 +90,19 @@ Return JSON only with keys: isAIGenerated, confidence, qualityScore, ipEligible,
           requirements: ipEligible ? [] : ["Improve image quality or authenticity"]
         },
         licenseRecommendation: {
-          primary: result.recommendedLicense || 'nonCommercial',
+          primary,
           confidence: 0.7,
-          reasoning: result.reasoning || "Basic recommendation based on simple analysis",
+          reasoning: result.reasoning || (isAIGenerated ? "AI content: restrict AI training; recommend remix if allowed" : "Human content: default to Commercial Remix (commercial + derivatives)"),
           aiLearningAllowed: !isAIGenerated,
           robotTerms: {
             userAgent: '*',
             allow: isAIGenerated ? "Disallow: /" : "Allow: /"
           },
           suggestedTerms: {
-            mintingFee: result.recommendedLicense === 'commercial' ? 50 : 0,
-            commercialRevShare: result.recommendedLicense === 'commercial' ? 10 : 0,
-            derivativesAllowed: result.recommendedLicense === 'remix',
-            commercialUse: result.recommendedLicense === 'commercial',
+            mintingFee,
+            commercialRevShare,
+            derivativesAllowed,
+            commercialUse,
             aiTrainingRestricted: isAIGenerated
           }
         },
@@ -115,9 +122,8 @@ Return JSON only with keys: isAIGenerated, confidence, qualityScore, ipEligible,
           `✅ Human content detected (quality: ${analysis.qualityAssessment.overall}/10)`,
         action: analysis.aiDetection.isAIGenerated ?
           'Register with AI restrictions' :
-          'Register with recommended license',
-        license: analysis.licenseRecommendation.primary === 'commercial' ? 'Commercial Use' :
-                analysis.licenseRecommendation.primary === 'remix' ? 'Remix License' : 'Non-Commercial',
+          'Register with Commercial Remix',
+        license: analysis.aiDetection.isAIGenerated ? (analysis.licenseRecommendation.primary === 'remix' ? 'Commercial Remix' : 'Non-Commercial') : 'Commercial Remix',
         aiLearning: analysis.aiDetection.isAIGenerated ? '🚫 Restricted (basic protection)' : '✅ Your choice'
       };
 
