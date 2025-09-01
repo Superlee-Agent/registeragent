@@ -631,10 +631,13 @@ Instructions:
       raw = resp.choices[0]?.message?.content || '{}';
     }
 
+    console.log('🤖 Model raw response:', raw.slice(0, 200) + '...');
     let j: any = {};
     try { j = JSON.parse(raw); } catch { throw new Error('Invalid JSON from model'); }
+    console.log('📋 Parsed JSON:', { answer_id: j.answer_id, answer_text_length: String(j.answer_text || '').length });
     const id = Number(j.answer_id);
     const text = String(j.answer_text || '').trim();
+    console.log('🔢 Final extraction:', { id, textLength: text.length, textPreview: text.slice(0, 100) + '...' });
     if (!Number.isFinite(id) || id < 1 || id > 12 || !text) {
       throw new Error("Unable to classify answer 1-12");
     }
