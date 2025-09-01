@@ -80,7 +80,11 @@ export class AdvancedAIDetectionWithLearningControl {
     "containsHumanFace": boolean,
     "faceCount": number,
     "famousPersonDetected": boolean,
-    "famousBrandOrCharacterDetected": boolean
+    "famousBrandOrCharacterDetected": boolean,
+    "detectedCelebrities": ["celebrity names if any"],
+    "detectedBrands": ["brand names if any"],
+    "detectedCharacters": ["fictional character names if any (e.g., Superman, Mickey Mouse)"],
+    "logoPresent": boolean
   }
 }
 
@@ -143,9 +147,23 @@ Return ONLY valid JSON.`
     enhanced.content.faceCount = Number.isFinite(enhanced.content.faceCount) ? enhanced.content.faceCount : 0;
     enhanced.content.famousPersonDetected = Boolean(enhanced.content.famousPersonDetected);
     enhanced.content.famousBrandOrCharacterDetected = Boolean(enhanced.content.famousBrandOrCharacterDetected);
+    enhanced.content.detectedCelebrities = Array.isArray(enhanced.content.detectedCelebrities) ? enhanced.content.detectedCelebrities : [];
+    enhanced.content.detectedBrands = Array.isArray(enhanced.content.detectedBrands) ? enhanced.content.detectedBrands : [];
+    enhanced.content.detectedCharacters = Array.isArray(enhanced.content.detectedCharacters) ? enhanced.content.detectedCharacters : [];
+    enhanced.content.logoPresent = Boolean(enhanced.content.logoPresent);
     enhanced.licenseRecommendation = enhanced.licenseRecommendation || { suggestedTerms: {} };
     enhanced.licenseRecommendation.suggestedTerms = enhanced.licenseRecommendation.suggestedTerms || {};
     enhanced.ipEligibility = enhanced.ipEligibility || { score: 0, reasons: [], risks: [], requirements: [] };
+
+    // Promote flags based on explicit detections
+    if (!enhanced.content.famousPersonDetected && enhanced.content.detectedCelebrities.length > 0) {
+      enhanced.content.famousPersonDetected = true;
+      enhanced.content.tags = Array.from(new Set([...(enhanced.content.tags||[]), ...enhanced.content.detectedCelebrities]));
+    }
+    if (!enhanced.content.famousBrandOrCharacterDetected && (enhanced.content.detectedBrands.length > 0 || enhanced.content.detectedCharacters.length > 0 || enhanced.content.logoPresent)) {
+      enhanced.content.famousBrandOrCharacterDetected = true;
+      enhanced.content.tags = Array.from(new Set([...(enhanced.content.tags||[]), ...enhanced.content.detectedBrands, ...enhanced.content.detectedCharacters, enhanced.content.logoPresent ? 'Logo' : undefined].filter(Boolean)));
+    }
 
     // Heuristic boost: infer celebrity/brand mentions from description/tags
     try {
