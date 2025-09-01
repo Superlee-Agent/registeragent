@@ -237,7 +237,7 @@ export function EnhancedAgentOrchestrator() {
           ? 'Register Remix License'
           : 'Share for Free';
 
-        ipText = `${mainTitle}\n${subtitle}\nNext: ${nextAction}`;
+        ipText = `${mainTitle}\n${subtitle}`;
 
       } else {
         // Fallback to basic analysis with more detailed error info
@@ -465,7 +465,7 @@ export function EnhancedAgentOrchestrator() {
             });
             const quick = await withTimeout(checkDuplicateQuick(publicClient, spg, imageHash));
             if (quick?.found) {
-              chatAgent.addMessage("agent", `��� This image is already registered as IP (Token ID: ${quick.tokenId}). Registration blocked.`);
+              chatAgent.addMessage("agent", `❌ This image is already registered as IP (Token ID: ${quick.tokenId}). Registration blocked.`);
               setToast("Duplicate image detected ❌");
               chatAgent.clearPlan();
               return;
