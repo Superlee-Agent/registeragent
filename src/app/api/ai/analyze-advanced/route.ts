@@ -92,21 +92,21 @@ export async function POST(req: Request) {
           indicators: analysis.aiDetection.indicators
         },
         quality: {
-          overall: analysis.qualityAssessment.overall,
-          technical: analysis.qualityAssessment.technical,
-          artistic: analysis.qualityAssessment.artistic
+          overall: analysis?.qualityAssessment?.overall ?? 0,
+          technical: analysis?.qualityAssessment?.technical ?? { resolution: 0, sharpness: 0, composition: 0, lighting: 0, colorBalance: 0 },
+          artistic: analysis?.qualityAssessment?.artistic ?? { creativity: 0, originality: 0, aesthetics: 0, concept: 0 }
         },
         ipEligibility: {
-          eligible: analysis.ipEligibility.isEligible,
-          score: analysis.ipEligibility.score,
-          risks: analysis.ipEligibility.risks,
-          requirements: analysis.ipEligibility.requirements
+          eligible: analysis?.ipEligibility?.isEligible ?? false,
+          score: analysis?.ipEligibility?.score ?? 0,
+          risks: analysis?.ipEligibility?.risks ?? [],
+          requirements: analysis?.ipEligibility?.requirements ?? []
         },
         license: {
-          recommended: analysis.licenseRecommendation.primary,
-          aiTrainingRestricted: analysis.licenseRecommendation.suggestedTerms.aiTrainingRestricted,
-          mintingFee: analysis.licenseRecommendation.suggestedTerms.mintingFee,
-          commercialRevShare: analysis.licenseRecommendation.suggestedTerms.commercialRevShare
+          recommended: analysis?.licenseRecommendation?.primary ?? 'remix',
+          aiTrainingRestricted: analysis?.licenseRecommendation?.suggestedTerms?.aiTrainingRestricted ?? false,
+          mintingFee: analysis?.licenseRecommendation?.suggestedTerms?.mintingFee ?? 0,
+          commercialRevShare: analysis?.licenseRecommendation?.suggestedTerms?.commercialRevShare ?? 0
         }
       },
       timestamp: new Date().toISOString(),
