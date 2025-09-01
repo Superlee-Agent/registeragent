@@ -373,7 +373,7 @@ export function EnhancedAgentOrchestrator() {
         aiResult.content.famousPersonDetected ||
         (Array.isArray(aiResult.ipEligibility?.reasons) && aiResult.ipEligibility.reasons.some(r => {
           const t = String(r).toLowerCase();
-          return t.includes('famous brand') || t.includes('celebrity');
+          return t.includes('famous brand') || t.includes('celebrity') || t.includes('policy decision: block') || t.includes('block');
         }))
       ));
 
@@ -465,7 +465,7 @@ export function EnhancedAgentOrchestrator() {
             });
             const quick = await withTimeout(checkDuplicateQuick(publicClient, spg, imageHash));
             if (quick?.found) {
-              chatAgent.addMessage("agent", `❌ This image is already registered as IP (Token ID: ${quick.tokenId}). Registration blocked.`);
+              chatAgent.addMessage("agent", `��� This image is already registered as IP (Token ID: ${quick.tokenId}). Registration blocked.`);
               setToast("Duplicate image detected ❌");
               chatAgent.clearPlan();
               return;
