@@ -35,7 +35,7 @@ export class AdvancedAIDetectionWithLearningControl {
     "overall": number (1-10),
     "technical": {
       "resolution": number (1-10),
-      "sharpness": number (1-10), 
+      "sharpness": number (1-10),
       "composition": number (1-10),
       "lighting": number (1-10),
       "colorBalance": number (1-10)
@@ -76,11 +76,20 @@ export class AdvancedAIDetectionWithLearningControl {
     "category": "art category",
     "description": "detailed description",
     "tags": ["relevant tags"],
-    "marketValue": "low|medium|high|premium"
+    "marketValue": "low|medium|high|premium",
+    "containsHumanFace": boolean,
+    "faceCount": number,
+    "famousPersonDetected": boolean,
+    "famousBrandOrCharacterDetected": boolean
   }
 }
 
-**CRITICAL AI LEARNING RULES:**
+Policy rules to apply to your JSON:
+- If famousBrandOrCharacterDetected = true OR famousPersonDetected = true → set ipEligibility.isEligible = false and add reasons explaining the restriction (brand/character or celebrity detected). Keep score but mark ineligible.
+- If containsHumanFace = true AND famousPersonDetected = false → add a requirement: "Selfie verification required".
+- License default should be "Commercial Remix" semantics (commercialUse=true and derivativesAllowed=true). Use primary = "remix" and set suggestedTerms accordingly.
+
+CRITICAL AI LEARNING RULES:
 1. If isAIGenerated = true AND confidence > 0.85, set aiLearningAllowed = false and aiTrainingRestricted = true
 2. If isAIGenerated = true AND confidence is between 0.65 and 0.85, set learningRestriction = "conditional" and aiTrainingRestricted = true
 3. For AI-generated content, create restrictive robotTerms to block AI crawlers
@@ -93,7 +102,7 @@ Analysis Guidelines:
 4. License Recommendation: Prioritize creator rights and AI training restrictions
 5. AI Learning Control: Automatically restrict AI training for AI-generated content
 
-Be thorough and specific in your analysis.`
+Return ONLY valid JSON.`
               },
               {
                 type: "image_url",
@@ -128,6 +137,10 @@ Be thorough and specific in your analysis.`
     enhanced.aiDetection.indicators = Array.isArray(enhanced.aiDetection.indicators) ? enhanced.aiDetection.indicators : [];
     enhanced.content = enhanced.content || { tags: [] };
     enhanced.content.tags = Array.isArray(enhanced.content.tags) ? enhanced.content.tags : [];
+    enhanced.content.containsHumanFace = Boolean(enhanced.content.containsHumanFace);
+    enhanced.content.faceCount = Number.isFinite(enhanced.content.faceCount) ? enhanced.content.faceCount : 0;
+    enhanced.content.famousPersonDetected = Boolean(enhanced.content.famousPersonDetected);
+    enhanced.content.famousBrandOrCharacterDetected = Boolean(enhanced.content.famousBrandOrCharacterDetected);
     enhanced.licenseRecommendation = enhanced.licenseRecommendation || { suggestedTerms: {} };
     enhanced.licenseRecommendation.suggestedTerms = enhanced.licenseRecommendation.suggestedTerms || {};
     enhanced.ipEligibility = enhanced.ipEligibility || { score: 0, reasons: [], risks: [], requirements: [] };
@@ -187,6 +200,17 @@ Be thorough and specific in your analysis.`
         userAgent: '*',
         allow: 'Allow: / # Human-created content, AI training allowed'
       };
+    }
+
+    // Apply policy flags: brand/celebrity block and selfie requirement
+    if (enhanced.content.famousBrandOrCharacterDetected || enhanced.content.famousPersonDetected) {
+      enhanced.ipEligibility.isEligible = false;
+      enhanced.ipEligibility.reasons = Array.from(new Set([...(enhanced.ipEligibility.reasons||[]), enhanced.content.famousBrandOrCharacterDetected ? 'Contains famous brand/character' : 'Contains celebrity face']));
+      enhanced.ipEligibility.risks = Array.from(new Set([...(enhanced.ipEligibility.risks||[]), 'High legal risk: trademark/publicity rights']));
+    }
+    if (enhanced.content.containsHumanFace && !enhanced.content.famousPersonDetected) {
+      if (!enhanced.ipEligibility.requirements) enhanced.ipEligibility.requirements = [];
+      if (!enhanced.ipEligibility.requirements.includes('Selfie verification required')) enhanced.ipEligibility.requirements.push('Selfie verification required');
     }
 
     // Enhance IP eligibility calculation
@@ -259,36 +283,36 @@ Be thorough and specific in your analysis.`
     const isAI = analysis.aiDetection?.isAIGenerated;
     const aiConfidence = analysis.aiDetection?.confidence || 0;
 
-    let primary: 'commercial' | 'nonCommercial' | 'remix' = 'nonCommercial';
+    let primary: 'commercial' | 'nonCommercial' | 'remix' = 'remix';
     let reasoning = '';
     let mintingFee = 0;
     let commercialRevShare = 5;
     let aiTrainingRestricted = false;
 
     if (isAI && aiConfidence >= 0.85) {
-      primary = 'nonCommercial';
-      reasoning = 'AI-generated content with high confidence. Restricted to non-commercial use with AI training disabled for creator protection.';
+      primary = 'remix';
+      reasoning = 'AI-generated content with high confidence. Recommended Commercial Remix with AI training disabled to protect rights.';
       mintingFee = 0;
       commercialRevShare = 0;
       aiTrainingRestricted = true;
       
     } else if (isAI && aiConfidence >= 0.65) {
       primary = 'remix';
-      reasoning = 'Possible AI-generated content. Best suited for remix with AI training restrictions.';
+      reasoning = 'Possible AI-generated content. Recommend Commercial Remix with AI training restrictions.';
       mintingFee = 5;
       commercialRevShare = 3;
       aiTrainingRestricted = true;
       
     } else if (quality >= 8 && originality >= 7) {
-      primary = 'commercial';
-      reasoning = 'High-quality human-created content. Commercial use allowed with optional AI training permissions.';
+      primary = 'remix';
+      reasoning = 'High-quality human-created content. Recommend Commercial Remix (commercial + derivatives with revenue sharing).';
       mintingFee = 100;
       commercialRevShare = 15;
       aiTrainingRestricted = false; // Creator can choose
       
     } else if (quality >= 6 && originality >= 5) {
-      primary = 'commercial';
-      reasoning = 'Good quality human content suitable for commercial use with standard terms.';
+      primary = 'remix';
+      reasoning = 'Good quality human content. Recommend Commercial Remix with standard terms.';
       mintingFee = 50;
       commercialRevShare = 10;
       aiTrainingRestricted = false;
@@ -408,32 +432,32 @@ Be thorough and specific in your analysis.`
       return {
         status: 'ai-restricted',
         message: '🤖 AI-Generated content detected. AI training automatically disabled.',
-        action: 'Register with non-commercial license and AI restrictions',
-        license: 'Non-Commercial - AI Training Blocked',
+        action: 'Register with Commercial Remix (AI training blocked)',
+        license: 'Commercial Remix - AI Training Blocked',
         aiLearning: '🚫 Disabled - Protects your AI-generated content'
       };
     } else if (isAI && aiConfidence >= 0.65) {
       return {
         status: 'fair',
         message: '⚠️ Possible AI content. AI training restricted as precaution.',
-        action: 'Register for remix use with AI training disabled',
-        license: 'Remix License - AI Training Restricted',
+        action: 'Register with Commercial Remix (AI training restricted)',
+        license: 'Commercial Remix - AI Training Restricted',
         aiLearning: '🚫 Restricted - Precautionary protection'
       };
     } else if (score >= 80) {
       return {
         status: 'excellent',
         message: '🌟 Excellent human-created content! Full commercial potential.',
-        action: 'Register with commercial license - you choose AI training',
-        license: 'Commercial Use - Premium terms',
+        action: 'Register with Commercial Remix - you choose AI training',
+        license: 'Commercial Remix - Premium terms',
         aiLearning: '✅ Your choice - Human-created content'
       };
     } else if (score >= 65) {
       return {
         status: 'good',
         message: '✅ Good quality human content suitable for commercial use.',
-        action: 'Register with standard commercial terms',
-        license: 'Commercial Use - Standard terms',
+        action: 'Register with Commercial Remix (standard terms)',
+        license: 'Commercial Remix - Standard terms',
         aiLearning: '✅ Your choice - Human-created content'
       };
     } else {
