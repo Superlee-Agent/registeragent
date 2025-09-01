@@ -597,7 +597,7 @@ This is an animation containing an ordinary human face (not a celebrity or famou
 
 Instructions:
 - Choose exactly one Answer from the list (1-12) that best fits the image.
-- Respond with the exact text of that single Answer block only. Do not add any extra words.`;
+- Respond ONLY in strict JSON with keys exactly: {"answer_id": <1-12>, "answer_text": "<paste the exact text of the chosen Answer block>"}. No markdown, no extra keys, no prose.`;
 
     const resp = await this.openai.chat.completions.create({
       model: "gpt-4o",
@@ -606,11 +606,14 @@ Instructions:
       ],
       max_tokens: 300,
       temperature: 0,
+      response_format: { type: "json_object" }
     }, { timeout: 10000 });
-    const text = String(resp.choices[0]?.message?.content || '').trim();
-    const m = text.match(/Answer\s*(\d+)\s*:/i);
-    const id = m ? parseInt(m[1], 10) : NaN;
-    if (!Number.isFinite(id) || id < 1 || id > 12) {
+    const raw = resp.choices[0]?.message?.content || '{}';
+    let j: any = {};
+    try { j = JSON.parse(raw); } catch { throw new Error('Invalid JSON from model'); }
+    const id = Number(j.answer_id);
+    const text = String(j.answer_text || '').trim();
+    if (!Number.isFinite(id) || id < 1 || id > 12 || !text) {
       throw new Error("Unable to classify answer 1-12");
     }
     return { id, text };
