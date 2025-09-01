@@ -237,7 +237,6 @@ export function EnhancedAgentOrchestrator() {
           : primaryPolicy === 'remix'
           ? 'Register Remix License'
           : 'Share for Free';
-
         ipText = `${mainTitle}\n${subtitle}`;
 
       } else {
@@ -265,7 +264,7 @@ export function EnhancedAgentOrchestrator() {
 
 🔧 Enhanced features when AI is working:
 • AI content detection
-• Quality & IP eligibility scoring
+��� Quality & IP eligibility scoring
 • Smart license recommendations
 • AI learning controls`;
       }
@@ -644,8 +643,7 @@ License Type: ${result.licenseType}`;
     } else if (buttonText === "Why?") {
       if (lastAIResult && lastAIRec) {
         const confPct = Math.round((lastAIResult.aiDetection.confidence || 0) * 100);
-        const displayAI = (lastAIResult.aiDetection.isAIGenerated && confPct >= 5);
-        const aiStatus = displayAI ? `AI-Generated (${confPct}%)` : 'Human-Created';
+        const aiStatus = lastAIResult.aiDetection.isAIGenerated ? `AI-Generated (${confPct}%)` : 'Human-Created';
         const qualityScore = `${lastAIResult.qualityAssessment.overall}/10`;
         const scoreNum = lastAIResult.ipEligibility.score || 0;
         const ipScore = `${scoreNum}/100`;
@@ -986,7 +984,7 @@ License Type: ${result.licenseType}`;
           chatAgent.addCompleteMessage({
             role: 'agent',
             ts: Date.now(),
-            text: `Permohonan review terkirim ✅\nCID: ${cid}`,
+            text: `Permohonan review terkirim ��\nCID: ${cid}`,
             links: [{ text: 'Lihat berkas review di IPFS', url }]
           });
           setToast('🎉 Review submitted');
