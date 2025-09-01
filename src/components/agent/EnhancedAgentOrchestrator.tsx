@@ -215,7 +215,13 @@ export function EnhancedAgentOrchestrator() {
         aiRecommendation = aiAnalysisResult.value.recommendation;
         // Prefer displaying the single preset answer block from classification
         const classification = aiAnalysisResult.value.classification;
-        if (classification?.text) presetAnswerText = String(classification.text);
+        console.log('🔍 Classification received:', classification);
+        if (classification?.text) {
+          presetAnswerText = String(classification.text);
+          console.log('✅ Using preset text:', presetAnswerText.slice(0, 100) + '...');
+        } else {
+          console.log('❌ No classification text found');
+        }
         // Stash on analysis too
         (aiResult as any)._classification = classification;
         setLastAIResult(aiResult);
@@ -415,6 +421,7 @@ export function EnhancedAgentOrchestrator() {
 
       // Update the loading message: if we have preset classification, show only that single answer block
       const presetShown = presetAnswerText || (aiResult as any)?._classification?.text;
+      console.log('🎯 Final display logic:', { presetAnswerText: !!presetAnswerText, presetShown: !!presetShown, textToShow: textToShow.slice(0, 50) + '...' });
       const finalText = presetShown ? String(presetShown) : textToShow;
       chatAgent.updateLastMessage({
         text: finalText,
@@ -542,7 +549,7 @@ License Type: ${result.licenseType}`;
                   url: `https://aeneid.explorer.story.foundation/ipa/${result.ipId}`
                 },
                 {
-                  text: `🔗 View Transaction: ${result.txHash}`,
+                  text: `���� View Transaction: ${result.txHash}`,
                   url: `${explorerBase}/tx/${result.txHash}`
                 }
               ]
