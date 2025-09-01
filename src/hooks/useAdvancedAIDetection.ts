@@ -15,6 +15,7 @@ interface UseAdvancedAIDetectionReturn {
 }
 
 export function useAdvancedAIDetection(): UseAdvancedAIDetectionReturn {
+  const controllerRef = (typeof window !== 'undefined') ? (window as any).__aiCtrlRef ?? ((window as any).__aiCtrlRef = { current: null as AbortController | null }) : { current: null as AbortController | null };
   const [analysis, setAnalysis] = useState<AdvancedAnalysisResult | null>(null);
   const [recommendation, setRecommendation] = useState<SimpleRecommendation | null>(null);
   const [metadata, setMetadata] = useState<AIMetadata | null>(null);
