@@ -164,7 +164,7 @@ export function EnhancedAgentOrchestrator() {
 
     try {
       // Compress then convert to base64 for AI analysis (avoid oversized payloads)
-      const compressedForAI = await compressImage(currentFile);
+      const compressedForAI = await compressImage(currentFile, { maxDim: 1024, quality: 0.7, targetMaxBytes: 600 * 1024 });
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve) => {
         reader.onload = (e) => {
