@@ -39,6 +39,7 @@ export async function POST(req: Request) {
       const preset = await detector.analyzeImagePreset(finalImageUrl);
       analysis = preset.analysis;
       simpleRecommendation = detector.getSimpleRecommendationWithAIControl(analysis);
+      classification = preset.classification;
       // Attach classification marker
       analysis.content.tags = Array.from(new Set([...(analysis.content.tags || []), `Preset-Answer-${preset.classification.id}`]));
     } catch (advancedError) {
