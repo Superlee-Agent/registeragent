@@ -254,7 +254,7 @@ export function EnhancedAgentOrchestrator() {
         }
 
         ipText = wl.whitelisted ?
-          `✅ **Whitelisted Content**\n\nStatus: Pre-approved for registration\nRisk: Low\nTolerance: Good to register\n\n���️ Note: Advanced AI analysis unavailable${errorInfo}` :
+          `✅ **Whitelisted Content**\n\nStatus: Pre-approved for registration\nRisk: Low\nTolerance: Good to register\n\n⚠️ Note: Advanced AI analysis unavailable${errorInfo}` :
           `📋 **Basic Assessment**\n\nStatus: Standard evaluation\nRisk: Medium\nTolerance: Proceed with caution\n\n⚠️ **Advanced AI analysis unavailable**${errorInfo}\n\n💡 Troubleshooting:
 • Check if OpenAI API key is configured
 • Verify network connectivity
@@ -610,13 +610,22 @@ License Type: ${result.licenseType}`;
         const msg = `${t("smart.applied.title")}\n\n${body}`;
         try { chatAgent.updateLastMessage({ buttons: [] }); } catch {}
         const inlineButtons = [
-          selectedAiLearning ? 'AI Learning Off' : 'AI Learning On',
-          'Edit Mint Fee',
-          'Edit Rev Share',
           t("buttons.continue"),
           ...(allowCustom ? [t("buttons.customLicense")] : [])
         ];
-        chatAgent.addMessage("agent", msg, inlineButtons);
+        chatAgent.addCompleteMessage({
+          role: 'agent',
+          text: msg,
+          ts: Date.now(),
+          buttons: inlineButtons,
+          controls: {
+            aiLearning: !!selectedAiLearning && !lastAIResult.aiDetection.isAIGenerated,
+            mintingFee: (typeof selectedLicensePrice === 'number' ? selectedLicensePrice : st.mintingFee),
+            revShare: (typeof selectedRevShare === 'number' ? selectedRevShare : st.commercialRevShare),
+            aiLocked: !!lastAIResult.aiDetection.isAIGenerated,
+            editable: true,
+          }
+        });
         setToast(t("toasts.aiApplied"));
         setSmartApplied(true);
       } else {
@@ -758,7 +767,7 @@ License Type: ${result.licenseType}`;
       if (best <= th) {
         setAwaitingIdentity(false);
         setToast('Identity verified ✅');
-        chatAgent.addMessage('agent', `Identity verified (distance ${best} �� ${th}). Proceeding to registration.`);
+        chatAgent.addMessage('agent', `Identity verified (distance ${best} ≤ ${th}). Proceeding to registration.`);
         chatAgent.processPrompt('Continue Registration', referenceFile);
       } else {
         setToast('Identity mismatch ❌');
@@ -825,6 +834,28 @@ License Type: ${result.licenseType}`;
                 <MessageList
                   messages={chatAgent.messages}
                   onButtonClick={handleButtonClick}
+                  onControlChange={(changes) => {
+                    // Update local state
+                    if (typeof changes.aiLearning === 'boolean' && !(lastAIResult?.aiDetection.isAIGenerated)) {
+                      setSelectedAiLearning(changes.aiLearning);
+                    }
+                    if (typeof changes.mintingFee === 'number' && changes.mintingFee >= 0) {
+                      setSelectedLicensePrice(changes.mintingFee);
+                    }
+                    if (typeof changes.revShare === 'number' && changes.revShare >= 0 && changes.revShare <= 100) {
+                      setSelectedRevShare(changes.revShare);
+                    }
+                    // Reflect in last chat message controls
+                    chatAgent.updateLastMessage({
+                      controls: {
+                        aiLearning: (typeof changes.aiLearning === 'boolean') ? changes.aiLearning : (!!selectedAiLearning && !(lastAIResult?.aiDetection.isAIGenerated)),
+                        mintingFee: (typeof changes.mintingFee === 'number') ? changes.mintingFee : (selectedLicensePrice || 0),
+                        revShare: (typeof changes.revShare === 'number') ? changes.revShare : (selectedRevShare || 0),
+                        aiLocked: !!lastAIResult?.aiDetection.isAIGenerated,
+                        editable: true,
+                      }
+                    });
+                  }}
                   isTyping={chatAgent.isTyping}
                 />
 
