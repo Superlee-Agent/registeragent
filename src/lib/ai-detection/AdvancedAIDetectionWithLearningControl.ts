@@ -159,6 +159,21 @@ Return ONLY valid JSON.`
             analysis.content.detectedCharacters = Array.from(new Set([...(analysis.content.detectedCharacters||[]), 'Superman']));
           }
         }
+
+        // Generic famous character/brand detection
+        if (!analysis.content.famousBrandOrCharacterDetected) {
+          const famous = await this.checkFamousCharacter(imageUrl);
+          if (famous) {
+            const names = Array.isArray(famous.names) ? famous.names : [];
+            const shouldBlock = Boolean(famous.block) || names.length > 0;
+            if (shouldBlock) {
+              analysis.content.famousBrandOrCharacterDetected = true;
+              if (names.length) {
+                analysis.content.detectedCharacters = Array.from(new Set([...(analysis.content.detectedCharacters||[]), ...names]));
+              }
+            }
+          }
+        }
       } catch {}
 
       // Enhance analysis with business logic
