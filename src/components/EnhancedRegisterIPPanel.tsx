@@ -78,18 +78,25 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
   // Auto-apply recommended license
   useEffect(() => {
     if (analysis && recommendation && useRecommendedLicense) {
+      const st = analysis.licenseRecommendation.suggestedTerms;
+      const pilType = (st.commercialUse && st.derivativesAllowed) ? 'commercial_remix' : (
+        analysis.licenseRecommendation.primary === 'commercial' ? 'commercial_use' : (
+          analysis.licenseRecommendation.primary === 'remix' ? 'non_commercial_remix' : 'open_use'
+        )
+      );
       const recommendedLicense: LicenseSettings = {
-        pilType: analysis.licenseRecommendation.primary === 'commercial' ? 'commercial_use' :
-                 analysis.licenseRecommendation.primary === 'remix' ? 'non_commercial_remix' : 'open_use',
-        commercialUse: analysis.licenseRecommendation.suggestedTerms.commercialUse,
-        derivativeWorks: analysis.licenseRecommendation.suggestedTerms.derivativesAllowed,
-        revShare: analysis.licenseRecommendation.suggestedTerms.commercialRevShare,
-        mintingFee: analysis.licenseRecommendation.suggestedTerms.mintingFee,
-        currency: 'USD',
-        aiLearning: !analysis.licenseRecommendation.suggestedTerms.aiTrainingRestricted,
-        territory: 'Global',
+        pilType,
+        commercialUse: st.commercialUse,
+        derivativesAllowed: st.derivativesAllowed,
+        derivativesAttribution: true,
         attribution: true,
-      };
+        revShare: st.commercialRevShare,
+        licensePrice: st.mintingFee,
+        transferable: true,
+        aiLearning: !st.aiTrainingRestricted,
+        expiration: '0',
+        territory: 'Global',
+      } as LicenseSettings;
       setSelectedLicense(recommendedLicense);
     }
   }, [analysis, recommendation, useRecommendedLicense]);
