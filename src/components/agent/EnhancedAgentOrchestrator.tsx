@@ -254,7 +254,7 @@ export function EnhancedAgentOrchestrator() {
         }
 
         ipText = wl.whitelisted ?
-          `✅ **Whitelisted Content**\n\nStatus: Pre-approved for registration\nRisk: Low\nTolerance: Good to register\n\n⚠️ Note: Advanced AI analysis unavailable${errorInfo}` :
+          `✅ **Whitelisted Content**\n\nStatus: Pre-approved for registration\nRisk: Low\nTolerance: Good to register\n\n���️ Note: Advanced AI analysis unavailable${errorInfo}` :
           `📋 **Basic Assessment**\n\nStatus: Standard evaluation\nRisk: Medium\nTolerance: Proceed with caution\n\n⚠️ **Advanced AI analysis unavailable**${errorInfo}\n\n💡 Troubleshooting:
 • Check if OpenAI API key is configured
 • Verify network connectivity
@@ -596,22 +596,27 @@ License Type: ${result.licenseType}`;
         setSelectedAiLearning(!lastAIResult.aiDetection.isAIGenerated);
 
         const minForCustom = Number.parseInt(process.env.NEXT_PUBLIC_CUSTOM_LICENSE_MIN || '80', 10);
-        const allowCustom = lastAIResult.ipEligibility.score >= minForCustom;
-        const nextButtons = [t("buttons.continue"), ...(allowCustom ? [t("buttons.customLicense")] : [])];
+        const allowCustom = lastAIResult.ipEligibility.score >= minForCustom || !lastAIResult.aiDetection.isAIGenerated;
         const st = lastAIResult.licenseRecommendation.suggestedTerms;
         const body = t("smart.applied.body", {
           message: lastAIRec.message,
-          license: lastAIRec.license,
-          aiLearning: lastAIRec.aiLearning,
-          mintingFee: st.mintingFee,
-          revShare: st.commercialRevShare,
-          commercialUse: st.commercialUse ? t("yes") : t("no"),
-          derivatives: st.derivativesAllowed ? t("yes") : t("no"),
+          license: 'Commercial Remix',
+          aiLearning: selectedAiLearning ? '✅ Your choice' : '🚫 Disabled',
+          mintingFee: selectedLicensePrice || st.mintingFee,
+          revShare: selectedRevShare || st.commercialRevShare,
+          commercialUse: 'Yes',
+          derivatives: 'Yes',
         });
         const msg = `${t("smart.applied.title")}\n\n${body}`;
-        // remove buttons from previous message to avoid duplicate actions showing
         try { chatAgent.updateLastMessage({ buttons: [] }); } catch {}
-        chatAgent.addMessage("agent", msg, nextButtons);
+        const inlineButtons = [
+          selectedAiLearning ? 'AI Learning Off' : 'AI Learning On',
+          'Edit Mint Fee',
+          'Edit Rev Share',
+          t("buttons.continue"),
+          ...(allowCustom ? [t("buttons.customLicense")] : [])
+        ];
+        chatAgent.addMessage("agent", msg, inlineButtons);
         setToast(t("toasts.aiApplied"));
         setSmartApplied(true);
       } else {
@@ -632,6 +637,22 @@ License Type: ${result.licenseType}`;
       }
     } else if (buttonText === t("buttons.continue") || buttonText === "Continue Registration") {
       chatAgent.processPrompt(buttonText, (referenceFile || analyzedFile) || undefined);
+    } else if (buttonText === 'AI Learning On') {
+      setSelectedAiLearning(true);
+      chatAgent.addMessage('agent', 'AI Learning set to ON', [t("buttons.continue"), 'Edit Mint Fee', 'Edit Rev Share', 'AI Learning Off']);
+    } else if (buttonText === 'AI Learning Off') {
+      setSelectedAiLearning(false);
+      chatAgent.addMessage('agent', 'AI Learning set to OFF', [t("buttons.continue"), 'Edit Mint Fee', 'Edit Rev Share', 'AI Learning On']);
+    } else if (buttonText === 'Edit Mint Fee') {
+      const v = Number(prompt('Enter minting fee in $', String(selectedLicensePrice || 0)));
+      if (!isNaN(v) && v >= 0) setSelectedLicensePrice(v);
+      const fee = (!isNaN(v) && v >= 0) ? v : (selectedLicensePrice || 0);
+      chatAgent.addMessage('agent', `Minting fee set to $${fee}`, [t("buttons.continue"), 'AI Learning On', 'AI Learning Off', 'Edit Rev Share']);
+    } else if (buttonText === 'Edit Rev Share') {
+      const v = Number(prompt('Enter revenue share (%)', String(selectedRevShare || 10)));
+      if (!isNaN(v) && v >= 0 && v <= 100) setSelectedRevShare(v);
+      const rs = (!isNaN(v) && v >= 0 && v <= 100) ? v : (selectedRevShare || 10);
+      chatAgent.addMessage('agent', `Revenue share set to ${rs}%`, [t("buttons.continue"), 'AI Learning On', 'AI Learning Off', 'Edit Mint Fee']);
     } else if (buttonText === t("buttons.customLicense") || buttonText === "Custom License" || buttonText === "🎯 Smart License") {
       setSmartApplied(false);
       setShowCustomLicense(true);
@@ -737,7 +758,7 @@ License Type: ${result.licenseType}`;
       if (best <= th) {
         setAwaitingIdentity(false);
         setToast('Identity verified ✅');
-        chatAgent.addMessage('agent', `Identity verified (distance ${best} ≤ ${th}). Proceeding to registration.`);
+        chatAgent.addMessage('agent', `Identity verified (distance ${best} �� ${th}). Proceeding to registration.`);
         chatAgent.processPrompt('Continue Registration', referenceFile);
       } else {
         setToast('Identity mismatch ❌');
