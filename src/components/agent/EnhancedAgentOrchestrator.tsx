@@ -57,6 +57,7 @@ export function EnhancedAgentOrchestrator() {
   const [lastAIResult, setLastAIResult] = useState<AdvancedAnalysisResult | null>(null);
   const [lastAIRec, setLastAIRec] = useState<SimpleRecommendation | null>(null);
   const [smartApplied, setSmartApplied] = useState(false);
+  const [autoExecuted, setAutoExecuted] = useState(false);
   const { t } = useI18n();
 
   const handleNewChat = useCallback(() => {
@@ -116,6 +117,14 @@ export function EnhancedAgentOrchestrator() {
       behavior: "smooth",
     });
   }, [chatAgent.messages]);
+
+  // Auto execute plan when Smart License already applied (no PlanBox)
+  useEffect(() => {
+    if (smartApplied && chatAgent.currentPlan && chatAgent.currentPlan.type === 'register' && !autoExecuted) {
+      setAutoExecuted(true);
+      executePlan();
+    }
+  }, [smartApplied, chatAgent.currentPlan, autoExecuted, executePlan]);
 
   // Auto-analyze AI when file is uploaded
   useEffect(() => {
@@ -695,7 +704,7 @@ License Type: ${result.licenseType}`;
       try {
         const faces = await countFaces(capture);
         if (faces > 1) {
-          setToast('Multiple faces detected ❌');
+          setToast('Multiple faces detected ���');
           chatAgent.addMessage('agent', 'Multiple faces detected in the photo. Please retake with only one face clearly visible.', ['Take Photo', 'Submit for Review']);
           return;
         }
@@ -852,7 +861,7 @@ License Type: ${result.licenseType}`;
 
 
                 {/* Plan Box */}
-                {chatAgent.currentPlan && (() => {
+                {chatAgent.currentPlan && !smartApplied && (() => {
                   const base = chatAgent.currentPlan;
                   const steps = [...base.steps];
                   const idx = steps.findIndex(s => /^License:/i.test(s) || /^Lisensi:/i.test(s));
