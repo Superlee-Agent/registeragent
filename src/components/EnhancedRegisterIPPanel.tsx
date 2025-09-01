@@ -118,9 +118,30 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
         recommendation,
         metadata
       } : undefined;
-      
+
       onRegister(fileUpload.file, title, description, selectedLicense, aiResult);
     }
+  };
+
+  const requireSelfie = !!(analysis?.content.containsHumanFace && !analysis?.content.famousPersonDetected);
+  const blockedByPolicy = !!(analysis?.content.famousBrandOrCharacterDetected || analysis?.content.famousPersonDetected);
+
+  const verifyWithCapture = async (capture: File) => {
+    if (!fileUpload.file) return;
+    try {
+      await preloadFaceModels();
+      const faces = await countFaces(capture).catch(() => 0);
+      if (faces > 1) return;
+      const [refEmb, capEmb] = await Promise.all([
+        getFaceEmbedding(fileUpload.file),
+        getFaceEmbedding(capture)
+      ]);
+      if (refEmb && capEmb) {
+        const simTh = parseFloat(process.env.NEXT_PUBLIC_FACE_SIM_THRESHOLD || '0.82');
+        const sim = cosineSimilarity(refEmb, capEmb);
+        if (sim >= simTh) setIdentityVerified(true);
+      }
+    } catch {}
   };
 
   const handleAcceptRecommendation = () => {
