@@ -621,7 +621,8 @@ License Type: ${result.licenseType}`;
         const ipScore = `${lastAIResult.ipEligibility.score}/100`;
         const riskLevel = lastAIResult.ipEligibility.score >= 80 ? 'Low' : lastAIResult.ipEligibility.score >= 60 ? 'Medium' : 'High';
         const tolerance = lastAIResult.ipEligibility.isEligible ? 'Good to register' : 'Proceed with caution';
-        const details = `${t("details.title")}\n${t("details.ai")}: ${aiStatus}\n${t("details.quality")}: ${qualityScore}\n${t("details.ip")}: ${ipScore} - ${lastAIResult.ipEligibility.isEligible ? 'eligible' : 'not eligible'}\n${t("details.license")}: ${lastAIRec.license}\n${t("details.risk")}: ${riskLevel}\n${t("details.suggestion")}: ${tolerance}`;
+        const licenseText = lastAIResult.aiDetection.isAIGenerated ? lastAIRec.license : 'Commercial Remix - Standard terms';
+        const details = `${t("details.title")}\n${t("details.ai")}: ${aiStatus}\n${t("details.quality")}: ${qualityScore}\n${t("details.ip")}: ${ipScore} - ${lastAIResult.ipEligibility.isEligible ? 'eligible' : 'not eligible'}\n${t("details.license")}: ${licenseText}\n${t("details.risk")}: ${riskLevel}\n${t("details.suggestion")}: ${tolerance}`;
         chatAgent.addMessage("agent", details);
       } else {
         chatAgent.addMessage("agent", t("generic.noMoreDetails"));
