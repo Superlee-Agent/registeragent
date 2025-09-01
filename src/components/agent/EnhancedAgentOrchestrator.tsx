@@ -228,7 +228,7 @@ export function EnhancedAgentOrchestrator() {
 
       if (aiResult && aiRecommendation) {
         const isHighConfidenceAI = aiResult.aiDetection.isAIGenerated && aiResult.aiDetection.confidence >= 0.85;
-        const mainTitle = isHighConfidenceAI ? '��� AI Content' : '✨ Great Work';
+        const mainTitle = isHighConfidenceAI ? '🤖 AI Content' : '✨ Great Work';
         const subtitle = isHighConfidenceAI ? 'This looks like it was made by AI' : 'Looks human-made';
         // Policy override: Human-created defaults to Commercial Remix
         const primaryPolicy = !aiResult.aiDetection.isAIGenerated ? 'remix' : aiResult.licenseRecommendation.primary;
@@ -593,7 +593,9 @@ License Type: ${result.licenseType}`;
     } else if (buttonText === "🧠 Smart License") {
       // Apply AI-recommended license settings from last analysis
       if (lastAIResult && lastAIRec) {
-        const isHuman = !lastAIResult.aiDetection.isAIGenerated;
+        const confPct = Math.round((lastAIResult.aiDetection.confidence || 0) * 100);
+        const displayAI = lastAIResult.aiDetection.isAIGenerated && confPct >= 5;
+        const isHuman = !displayAI;
         const aiLicense = lastAIResult.licenseRecommendation.primary;
         // Force Commercial Remix path
         setSelectedPilType('commercial_remix');
@@ -612,7 +614,7 @@ License Type: ${result.licenseType}`;
         const st = lastAIResult.licenseRecommendation.suggestedTerms;
 
         // Build message text as requested
-        const header = 'Superlee recommendation applied ���';
+        const header = 'Superlee recommendation applied 🎉';
         const humanLine = isHuman ? '✅ Human content detected' : '🤖 AI content detected';
         const core = `License: Commercial Remix\nCommercial use: Yes\nDerivatives: Yes`;
         const msg = `${header}\n\n${humanLine}\n\n${core}`;
@@ -717,7 +719,7 @@ License Type: ${result.licenseType}`;
       try {
         const faces = await countFaces(capture);
         if (faces > 1) {
-          setToast('Multiple faces detected ���');
+          setToast('⚠️ Multiple faces detected');
           chatAgent.addMessage('agent', 'Multiple faces detected in the photo. Please retake with only one face clearly visible.', ['Take Photo', 'Submit for Review']);
           return;
         }
@@ -987,7 +989,7 @@ License Type: ${result.licenseType}`;
             text: `Permohonan review terkirim ✅\nCID: ${cid}`,
             links: [{ text: 'Lihat berkas review di IPFS', url }]
           });
-          setToast('Review submitted ���');
+          setToast('🎉 Review submitted');
         }}
       />
     </div>
