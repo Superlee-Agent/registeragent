@@ -48,6 +48,7 @@ export function EnhancedAgentOrchestrator() {
   const [selectedPilType, setSelectedPilType] = useState<'open_use' | 'commercial_remix'>('commercial_remix');
   const [selectedRevShare, setSelectedRevShare] = useState<number>(0);
   const [selectedLicensePrice, setSelectedLicensePrice] = useState<number>(0);
+  const [selectedAiLearning, setSelectedAiLearning] = useState<boolean>(true);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [showCamera, setShowCamera] = useState(false);
@@ -377,7 +378,7 @@ export function EnhancedAgentOrchestrator() {
       } else {
         // Safe to register - add AI-enhanced options
         const minForCustom = Number.parseInt(process.env.NEXT_PUBLIC_CUSTOM_LICENSE_MIN || '80', 10);
-        const allowCustom = !!(aiResult && (aiResult.ipEligibility.score >= minForCustom));
+        const allowCustom = !!(aiResult && (!aiResult.aiDetection.isAIGenerated || aiResult.ipEligibility.score >= minForCustom));
         buttons = ["Continue Registration", ...(allowCustom ? ["Custom License"] : []), "Copy dHash"];
 
         // Add AI-specific button if AI analysis was successful
@@ -485,8 +486,9 @@ export function EnhancedAgentOrchestrator() {
         pilType: plan.intent.pilType || DEFAULT_LICENSE_SETTINGS.pilType,
       };
 
-      const merged = { ...licenseSettings };
+      const merged = { ...licenseSettings } as LicenseSettings;
       if (selectedPilType) merged.pilType = selectedPilType as any;
+      merged.aiLearning = !!selectedAiLearning && !(lastAIResult?.aiDetection.isAIGenerated);
       if (selectedPilType === 'commercial_remix') {
         if (!isNaN(selectedRevShare)) merged.revShare = selectedRevShare;
         if (!isNaN(selectedLicensePrice)) merged.licensePrice = selectedLicensePrice;
@@ -591,6 +593,7 @@ License Type: ${result.licenseType}`;
           setSelectedRevShare(0);
           setSelectedLicensePrice(0);
         }
+        setSelectedAiLearning(!lastAIResult.aiDetection.isAIGenerated);
 
         const minForCustom = Number.parseInt(process.env.NEXT_PUBLIC_CUSTOM_LICENSE_MIN || '80', 10);
         const allowCustom = lastAIResult.ipEligibility.score >= minForCustom;
@@ -825,11 +828,14 @@ License Type: ${result.licenseType}`;
                       selectedPilType={selectedPilType}
                       selectedRevShare={selectedRevShare}
                       selectedLicensePrice={selectedLicensePrice}
-                      hideLicenseControls={smartApplied || !!customTerms}
-                      onLicenseChange={({ pilType, revShare, licensePrice }) => {
+                      selectedAiLearning={selectedAiLearning}
+                      aiContent={!!lastAIResult?.aiDetection.isAIGenerated}
+                      hideLicenseControls={(!!customTerms) || (smartApplied && !!lastAIResult?.aiDetection.isAIGenerated)}
+                      onLicenseChange={({ pilType, revShare, licensePrice, aiLearning }) => {
                         if (pilType) setSelectedPilType(pilType);
                         if (typeof revShare === 'number') setSelectedRevShare(revShare);
                         if (typeof licensePrice === 'number') setSelectedLicensePrice(licensePrice);
+                        if (typeof aiLearning === 'boolean') setSelectedAiLearning(aiLearning);
                       }}
                     />
                   );
