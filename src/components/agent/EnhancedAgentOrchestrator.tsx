@@ -218,7 +218,7 @@ export function EnhancedAgentOrchestrator() {
         console.log('🔍 Classification received:', classification);
         if (classification?.text) {
           presetAnswerText = String(classification.text);
-          console.log('��� Using preset text:', presetAnswerText.slice(0, 100) + '...');
+          console.log('✅ Using preset text:', presetAnswerText.slice(0, 100) + '...');
         } else {
           console.log('❌ No classification text found');
         }
@@ -318,19 +318,18 @@ export function EnhancedAgentOrchestrator() {
       let toleranceGood = true;
 
       if (aiResult) {
-        // Use AI analysis to determine risk
-        const isHighConfidenceAI = aiResult.aiDetection.isAIGenerated && aiResult.aiDetection.confidence >= 0.85;
-        const isHuman = !isHighConfidenceAI;
-        if (isHuman) {
-          // User request: if OpenAI doesn't recognize as AI, allow registration
-          riskLow = true;
-          toleranceGood = true;
-          isRisky = false;
-        } else {
-          riskLow = aiResult.ipEligibility.score >= 60;
-          toleranceGood = aiResult.ipEligibility.isEligible;
-          isRisky = !toleranceGood || isHighConfidenceAI;
-        }
+        // Risk is based on eligibility and policy blocks only
+        riskLow = aiResult.ipEligibility.score >= 60;
+        toleranceGood = aiResult.ipEligibility.isEligible;
+        const policyBlocked = !!(
+          aiResult.content.famousBrandOrCharacterDetected ||
+          aiResult.content.famousPersonDetected ||
+          (Array.isArray(aiResult.ipEligibility?.reasons) && aiResult.ipEligibility.reasons.some(r => {
+            const t = String(r).toLowerCase();
+            return t.includes('policy decision: block') || t.includes('block');
+          }))
+        );
+        isRisky = policyBlocked || !toleranceGood;
       } else {
         // Fallback to text parsing
         const riskLine = (ipText.split('\n').find(l => l.toLowerCase().startsWith('risk:')) || '').toLowerCase();
