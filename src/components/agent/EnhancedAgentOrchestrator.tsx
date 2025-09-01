@@ -118,14 +118,6 @@ export function EnhancedAgentOrchestrator() {
     });
   }, [chatAgent.messages]);
 
-  // Auto execute plan when Smart License already applied (no PlanBox)
-  useEffect(() => {
-    if (smartApplied && chatAgent.currentPlan && chatAgent.currentPlan.type === 'register' && !autoExecuted) {
-      setAutoExecuted(true);
-      executePlan();
-    }
-  }, [smartApplied, chatAgent.currentPlan, autoExecuted, executePlan]);
-
   // Auto-analyze AI when file is uploaded
   useEffect(() => {
     if (!fileUpload.file) return;
@@ -570,6 +562,14 @@ License Type: ${result.licenseType}`;
     publicClient,
     explorerBase
   ]);
+
+  // Auto execute plan when Smart License already applied (no PlanBox)
+  useEffect(() => {
+    if (smartApplied && chatAgent.currentPlan && chatAgent.currentPlan.type === 'register' && !autoExecuted) {
+      setAutoExecuted(true);
+      executePlan();
+    }
+  }, [smartApplied, chatAgent.currentPlan, autoExecuted, executePlan]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
