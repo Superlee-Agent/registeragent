@@ -179,6 +179,7 @@ export function EnhancedAgentOrchestrator() {
       const base64 = await base64Promise;
 
       // Run advanced AI analysis and whitelist check in parallel
+      let presetAnswerText: string | null = null;
       const wlPromise = isWhitelistedImage(currentFile);
 
       let aiAnalysisPromise: Promise<any>;
@@ -213,10 +214,9 @@ export function EnhancedAgentOrchestrator() {
         aiResult = aiAnalysisResult.value.analysis;
         aiRecommendation = aiAnalysisResult.value.recommendation;
         // Prefer displaying the single preset answer block from classification
-        // It contains the exact chosen answer text from the 12 options
-        // e.g., "Answer 4: ..."
         const classification = aiAnalysisResult.value.classification;
-        // Stash for potential later use
+        if (classification?.text) presetAnswerText = String(classification.text);
+        // Stash on analysis too
         (aiResult as any)._classification = classification;
         setLastAIResult(aiResult);
         setLastAIRec(aiRecommendation);
@@ -234,8 +234,9 @@ export function EnhancedAgentOrchestrator() {
 
       if (aiResult) {
         const preset = (aiResult as any)._classification;
-        if (preset?.text) {
-          ipText = String(preset.text);
+        const effectivePreset = presetAnswerText || preset?.text;
+        if (effectivePreset) {
+          ipText = String(effectivePreset);
         } else if (aiRecommendation) {
           const isHighConfidenceAI = aiResult.aiDetection.isAIGenerated && aiResult.aiDetection.confidence >= 0.85;
           const mainTitle = isHighConfidenceAI ? '🤖 AI Content' : '✨ Great Work';
@@ -413,7 +414,7 @@ export function EnhancedAgentOrchestrator() {
       const textToShow = dupFound ? `${ipText}${duplicateBlockText}` : ipText;
 
       // Update the loading message: if we have preset classification, show only that single answer block
-      const presetShown = (aiResult as any)?._classification?.text;
+      const presetShown = presetAnswerText || (aiResult as any)?._classification?.text;
       const finalText = presetShown ? String(presetShown) : textToShow;
       chatAgent.updateLastMessage({
         text: finalText,
