@@ -232,12 +232,11 @@ export function EnhancedAgentOrchestrator() {
       // Create simplified chat message
       let ipText = "";
 
-      if (aiResult && aiRecommendation) {
+      if (aiResult) {
         const preset = (aiResult as any)._classification;
         if (preset?.text) {
-          // Show the exact single answer block text
           ipText = String(preset.text);
-        } else {
+        } else if (aiRecommendation) {
           const isHighConfidenceAI = aiResult.aiDetection.isAIGenerated && aiResult.aiDetection.confidence >= 0.85;
           const mainTitle = isHighConfidenceAI ? '🤖 AI Content' : '✨ Great Work';
           const subtitle = isHighConfidenceAI ? 'This looks like it was made by AI' : 'Looks human-made';
@@ -413,10 +412,9 @@ export function EnhancedAgentOrchestrator() {
       const duplicateBlockText = `\n\nDuplicate detected: this image is already registered as IP${dupTokenId ? ` (Token ID: ${dupTokenId})` : ''}. Registration is blocked.\nTolerance: Allowed to register as a remix`;
       const textToShow = dupFound ? `${ipText}${duplicateBlockText}` : ipText;
 
-      // Update the loading message to show results with appropriate next step and image preview
-      const finalText = (aiResult && (aiResult.content.famousBrandOrCharacterDetected || aiResult.content.famousPersonDetected))
-        ? `${ipText}\n\n❌ Registration not allowed due to brand/celebrity/character detection. You can submit for manual review.`
-        : textToShow;
+      // Update the loading message: if we have preset classification, show only that single answer block
+      const presetShown = (aiResult as any)?._classification?.text;
+      const finalText = presetShown ? String(presetShown) : textToShow;
       chatAgent.updateLastMessage({
         text: finalText,
         isLoading: false,
@@ -618,7 +616,7 @@ License Type: ${result.licenseType}`;
         const st = lastAIResult.licenseRecommendation.suggestedTerms;
 
         // Build message text as requested
-        const header = 'Superlee recommendation applied ���';
+        const header = 'Superlee recommendation applied 🎉';
         const humanLine = isHuman ? '✅ Human content detected' : '🤖 AI content detected';
         const core = `License: Commercial Remix\nCommercial use: Yes\nDerivatives: Yes`;
         const msg = `${header}\n\n${humanLine}\n\n${core}`;
