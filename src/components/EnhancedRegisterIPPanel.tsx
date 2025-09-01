@@ -244,6 +244,27 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
         />
       )}
 
+      {/* Policy banners */}
+      {analysis && (analysis.content.famousBrandOrCharacterDetected || analysis.content.famousPersonDetected) && (
+        <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+          <p className="text-red-300 text-sm font-medium">Registration blocked</p>
+          <p className="text-red-200/80 text-xs mt-1">Detected famous brand/character or celebrity face. Only manual review is allowed.</p>
+          <div className="mt-3">
+            <button onClick={() => setShowManualReview(true)} className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/20 text-white text-sm">Submit for Review</button>
+          </div>
+        </div>
+      )}
+
+      {analysis && requireSelfie && !identityVerified && !blockedByPolicy && (
+        <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+          <p className="text-yellow-300 text-sm font-medium">Selfie verification required</p>
+          <p className="text-yellow-200/80 text-xs mt-1">We detected a human face. Please verify with a selfie that matches the subject.</p>
+          <div className="mt-3 flex gap-2">
+            <button onClick={() => setShowCamera(true)} className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/20 text-white text-sm">Take Selfie</button>
+          </div>
+        </div>
+      )}
+
       {/* Error Display */}
       {error && (
         <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
