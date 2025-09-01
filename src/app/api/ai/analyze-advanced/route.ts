@@ -83,6 +83,7 @@ export async function POST(req: Request) {
       analysis,
       recommendation: simpleRecommendation,
       metadata,
+      classification,
       insights: {
         aiDetection: {
           status: analysis.aiDetection.isAIGenerated ? 'AI-Generated' : 'Human-Created',
