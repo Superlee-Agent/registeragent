@@ -376,14 +376,11 @@ export function EnhancedAgentOrchestrator() {
       } else if (isRisky) {
         buttons = ["Upload File", "Submit for Review", "Copy dHash"];
       } else {
-        // Safe to register - add AI-enhanced options
-        const minForCustom = Number.parseInt(process.env.NEXT_PUBLIC_CUSTOM_LICENSE_MIN || '80', 10);
-        const allowCustom = !!(aiResult && (!aiResult.aiDetection.isAIGenerated || aiResult.ipEligibility.score >= minForCustom));
-        buttons = ["Continue Registration", ...(allowCustom ? ["Custom License"] : []), "Copy dHash"];
-
-        // Add AI-specific button if AI analysis was successful
+        // Safe to register - show minimal actions in chat
         if (aiResult && aiRecommendation) {
-          buttons = ["🧠 Smart License", "Continue Registration", ...(allowCustom ? ["Custom License"] : []), "Copy dHash"];
+          buttons = ["🧠 Smart License", "Copy dHash"];
+        } else {
+          buttons = ["Copy dHash"];
         }
       }
       if ((faceDetected || requiresIdentity) && !blockedByPolicy) {
