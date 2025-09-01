@@ -499,6 +499,212 @@ If none, use [] and false. Respond ONLY JSON.` },
     return enhanced as AdvancedAnalysisResult;
   }
 
+  // Classify image using fixed answer set prompt and map to analysis
+  public async classifyWithPresetAnswers(imageUrl: string): Promise<{ id: number; text: string }> {
+    const prompt = `What is this? Answer with only one of the following options:
+
+Answer 1:
+This is an AI-generated image.
+No human face, no brand/famous character.
+✅ This IP can be registered.
+– Smart Licensing: recommended
+
+Commercial Remix License (minting fee & revenue share set manually).
+– AI training not allowed (fixed, cannot be changed manually).
+
+Answer 2:
+This is an AI-generated image.
+Contains brand/famous character or famous human face.
+❌ Registration of this IP is not allowed.
+– User only has the option to Submit Review.
+
+Answer 3:
+This is an AI-generated image.
+Contains an ordinary human face (not famous).
+❌ Registration of this IP is not directly allowed.
+– User can choose "Take Selfie Photo".
+– If selfie verification succeeds → ✅ This IP can be registered (Smart Licensing recommends "Commercial Remix" License, minting fee & revenue share set manually).
+– AI training not allowed.
+– If selfie verification fails → ❌ IP registration is rejected (Submit Review option).
+
+Answer 4:
+This is a human-made image.
+No human face, no brand/famous character.
+✅ This IP can be registered.
+– Smart Licensing: recommends "Commercial Remix" License (minting fee & revenue share set manually).
+– AI training allowed (user can set manually).
+
+Answer 5:
+This is a human-made image.
+Contains brand/famous character or famous human face.
+❌ Registration of this IP is not allowed.
+– User only has the option to "Submit Review".
+
+Answer 6:
+This is a human-made image.
+Contains an ordinary human face (not a celebrity or famous character).
+❌ Registration of this IP is not directly allowed.
+– User can choose "Take Selfie Photo".
+– If selfie verification succeeds → ✅ This IP can be registered (Smart Licensing recommends "Commercial Remix" License, minting fee & revenue share set manually).
+– AI training allowed (user can set manually).
+– If selfie verification fails → ❌ IP registration is rejected (Submit Review option).
+
+Answer 7:
+This is an AI-generated image.
+This is an animation. No human face, no brand/famous character.
+✅ This IP can be registered.
+– Smart Licensing: recommended
+
+Commercial Remix License (minting fee & revenue share set manually).
+– AI training not allowed (fixed, cannot be changed manually).
+
+Answer 8:
+This is an AI-generated image.
+This is an animation containing brand/famous character or famous human face.
+❌ Registration of this IP is not allowed.
+– User only has the option to Submit Review.
+
+Answer 9:
+This is an AI-generated image.
+This is an animation containing an ordinary human face (not famous).
+❌ Registration of this IP is not directly allowed.
+– User can choose "Take Selfie Photo".
+– If selfie verification succeeds → ✅ This IP can be registered (Smart Licensing recommends "Commercial Remix" License, minting fee & revenue share set manually).
+– AI training allowed (user can set manually).
+– If selfie verification fails → ❌ IP registration is rejected (Submit Review option).
+
+Answer 10:
+This is a human-made image.
+This is an animation. No human face, no brand/famous character.
+✅ This IP can be registered.
+– Smart Licensing: recommends "Commercial Remix" License (minting fee & revenue share set manually).
+– AI training allowed (user can set manually).
+
+Answer 11:
+This is a human-made image.
+This is an animation containing brand/famous character or famous human face.
+❌ Registration of this IP is not allowed.
+– User only has the option to "Submit Review".
+
+Answer 12:
+This is a human-made image.
+This is an animation containing an ordinary human face (not a celebrity or famous character).
+❌ Registration of this IP is not directly allowed.
+– User can choose "Take Selfie Photo".
+– If selfie verification succeeds → ✅ This IP can be registered (Smart Licensing recommends "Commercial Remix" License, minting fee & revenue share set manually).
+– AI training allowed (user can set manually).
+– If selfie verification fails → ❌ IP registration is rejected (Submit Review option).
+
+Instructions:
+- Choose exactly one Answer from the list (1-12) that best fits the image.
+- Respond with the exact text of that single Answer block only. Do not add any extra words.`;
+
+    const resp = await this.openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "user", content: [ { type: "text", text: prompt }, { type: "image_url", image_url: { url: imageUrl } } ] as any }
+      ],
+      max_tokens: 600,
+      temperature: 0,
+    });
+    const text = String(resp.choices[0]?.message?.content || '').trim();
+    const m = text.match(/Answer\s*(\d+)\s*:/i);
+    const id = m ? parseInt(m[1], 10) : NaN;
+    if (!Number.isFinite(id) || id < 1 || id > 12) {
+      throw new Error("Unable to classify answer 1-12");
+    }
+    return { id, text };
+  }
+
+  private buildAnalysisFromClassification(imageUrl: string, cls: { id: number; text: string }): AdvancedAnalysisResult {
+    const id = cls.id;
+    const isAI = [1,2,3,7,8,9].includes(id);
+    const isAnimation = [7,8,9,10,11,12].includes(id);
+    const hasFamous = [2,5,8,11].includes(id);
+    const hasOrdinaryFace = [3,6,9,12].includes(id);
+    const noFace = [1,4,7,10].includes(id);
+
+    const containsHumanFace = hasOrdinaryFace || [2,5,8,11].includes(id);
+    const famousPersonDetected = [2,5,8,11].includes(id);
+    const famousBrandOrCharacterDetected = [2,5,8,11].includes(id);
+
+    const canRegisterNow = [1,4,7,10].includes(id);
+    const requiresSelfie = [3,6,9,12].includes(id);
+    const blocked = [2,5,8,11].includes(id);
+
+    const aiTrainingAllowed = ((): boolean => {
+      if (isAI) {
+        if ([1,3,7].includes(id)) return false;
+        if (id === 9) return true;
+        return false;
+      }
+      return true;
+    })();
+
+    const overall = isAI ? 6 : 7;
+
+    const analysis: AdvancedAnalysisResult = {
+      aiDetection: {
+        isAIGenerated: isAI,
+        confidence: 0.9,
+        indicators: isAI ? ["Policy-based classification"] : ["Policy-based classification"],
+        aiModel: undefined,
+        learningRestriction: isAI ? (aiTrainingAllowed ? 'conditional' : 'disabled') : 'enabled',
+      },
+      qualityAssessment: {
+        overall,
+        technical: { resolution: overall, sharpness: overall, composition: overall, lighting: overall, colorBalance: overall },
+        artistic: { creativity: overall, originality: overall, aesthetics: overall, concept: overall },
+      },
+      ipEligibility: {
+        isEligible: canRegisterNow && !blocked,
+        score: canRegisterNow && !blocked ? 85 : (requiresSelfie ? 50 : 15),
+        reasons: blocked ? [famousPersonDetected ? 'Contains celebrity face' : 'Contains famous brand/character'] : (requiresSelfie ? ['Selfie verification required'] : ['Meets policy requirements']),
+        risks: blocked ? ['High legal risk: trademark/publicity rights'] : [],
+        requirements: requiresSelfie ? ['Selfie verification required'] : [],
+      },
+      licenseRecommendation: {
+        primary: 'remix',
+        confidence: 0.9,
+        reasoning: canRegisterNow ? 'Eligible per preset policy classification' : (blocked ? 'Blocked per policy (famous brand/character or celebrity)' : 'Requires selfie verification'),
+        aiLearningAllowed: aiTrainingAllowed,
+        robotTerms: aiTrainingAllowed ? { userAgent: '*', allow: 'Allow: /' } : { userAgent: '*', allow: 'Disallow: /' },
+        suggestedTerms: {
+          mintingFee: 50,
+          commercialRevShare: 10,
+          derivativesAllowed: true,
+          commercialUse: true,
+          aiTrainingRestricted: !aiTrainingAllowed,
+        },
+      },
+      content: {
+        type: isAnimation ? 'animation' : 'image',
+        category: isAnimation ? 'animation' : 'digital content',
+        description: `Preset classification Answer ${id}`,
+        tags: Array.from(new Set([
+          isAI ? 'AI-Generated' : 'Human-Created',
+          isAnimation ? 'Animation' : undefined,
+          containsHumanFace ? 'Human-Face' : 'No-Face',
+          famousPersonDetected ? 'Celebrity' : undefined,
+          famousBrandOrCharacterDetected ? 'Brand/Character' : undefined,
+        ].filter(Boolean) as string[])),
+        marketValue: 'medium',
+        containsHumanFace,
+        faceCount: containsHumanFace ? 1 : 0,
+        famousPersonDetected,
+        famousBrandOrCharacterDetected,
+      },
+    };
+
+    return analysis;
+  }
+
+  public async analyzeImagePreset(imageUrl: string): Promise<{ analysis: AdvancedAnalysisResult; classification: { id: number; text: string } }> {
+    const cls = await this.classifyWithPresetAnswers(imageUrl);
+    const analysis = this.buildAnalysisFromClassification(imageUrl, cls);
+    return { analysis, classification: cls };
+  }
+
   private calculateEnhancedIPEligibility(analysis: any): any {
     let score = 0;
     const reasons = [];
