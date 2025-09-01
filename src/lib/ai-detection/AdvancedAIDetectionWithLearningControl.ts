@@ -602,11 +602,11 @@ Instructions:
     const resp = await this.openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "user", content: [ { type: "text", text: prompt }, { type: "image_url", image_url: { url: imageUrl } } ] as any }
+        { role: "user", content: [ { type: "text", text: prompt }, { type: "image_url", image_url: { url: imageUrl, detail: 'low' } } ] as any }
       ],
-      max_tokens: 600,
+      max_tokens: 300,
       temperature: 0,
-    });
+    }, { timeout: 10000 });
     const text = String(resp.choices[0]?.message?.content || '').trim();
     const m = text.match(/Answer\s*(\d+)\s*:/i);
     const id = m ? parseInt(m[1], 10) : NaN;
