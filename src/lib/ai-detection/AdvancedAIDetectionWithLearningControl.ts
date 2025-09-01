@@ -121,15 +121,60 @@ Return ONLY valid JSON.`
       });
 
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
-      
+
+      // Second pass: explicit entity detection (celebrities/brands/characters)
+      try {
+        const ents = await this.detectEntities(imageUrl);
+        analysis.content = analysis.content || {};
+        analysis.content.detectedCelebrities = Array.isArray(analysis.content.detectedCelebrities) ? analysis.content.detectedCelebrities : [];
+        analysis.content.detectedBrands = Array.isArray(analysis.content.detectedBrands) ? analysis.content.detectedBrands : [];
+        analysis.content.detectedCharacters = Array.isArray(analysis.content.detectedCharacters) ? analysis.content.detectedCharacters : [];
+        analysis.content.logoPresent = Boolean(analysis.content.logoPresent);
+        if (Array.isArray(ents.celebrities)) analysis.content.detectedCelebrities = Array.from(new Set([...analysis.content.detectedCelebrities, ...ents.celebrities]));
+        if (Array.isArray(ents.brands)) analysis.content.detectedBrands = Array.from(new Set([...analysis.content.detectedBrands, ...ents.brands]));
+        if (Array.isArray(ents.characters)) analysis.content.detectedCharacters = Array.from(new Set([...analysis.content.detectedCharacters, ...ents.characters]));
+        if (typeof ents.logoPresent === 'boolean') analysis.content.logoPresent = analysis.content.logoPresent || ents.logoPresent;
+        if (!analysis.content.famousPersonDetected && analysis.content.detectedCelebrities?.length > 0) analysis.content.famousPersonDetected = true;
+        if (!analysis.content.famousBrandOrCharacterDetected && ((analysis.content.detectedBrands?.length||0) > 0 || (analysis.content.detectedCharacters?.length||0) > 0 || analysis.content.logoPresent)) analysis.content.famousBrandOrCharacterDetected = true;
+      } catch {}
+
       // Enhance analysis with business logic
       const enhancedAnalysis = this.enhanceAnalysisWithAIControls(analysis);
-      
+
       console.log(`🔍 Advanced AI Analysis with Learning Control:`, enhancedAnalysis);
       return enhancedAnalysis;
     } catch (error) {
       console.error("Error analyzing image:", error);
       throw error;
+    }
+  }
+
+  private async detectEntities(imageUrl: string): Promise<{ celebrities: string[]; brands: string[]; characters: string[]; logoPresent: boolean; }> {
+    try {
+      const resp = await this.openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: `Identify any well-known public figures, brands/logos, and fictional characters in this image. Return strict JSON with keys: celebrities (string[]), brands (string[]), characters (string[]), logoPresent (boolean). If none, use [] and false. Respond ONLY JSON.` },
+              { type: "image_url", image_url: { url: imageUrl } }
+            ]
+          }
+        ],
+        max_tokens: 200,
+        temperature: 0.1,
+        response_format: { type: "json_object" }
+      });
+      const j = JSON.parse(resp.choices[0]?.message?.content || '{}');
+      return {
+        celebrities: Array.isArray(j.celebrities) ? j.celebrities : [],
+        brands: Array.isArray(j.brands) ? j.brands : [],
+        characters: Array.isArray(j.characters) ? j.characters : [],
+        logoPresent: !!j.logoPresent,
+      };
+    } catch {
+      return { celebrities: [], brands: [], characters: [], logoPresent: false };
     }
   }
 
