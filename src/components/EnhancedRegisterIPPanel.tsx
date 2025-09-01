@@ -51,7 +51,7 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
       const analyzeFile = async () => {
         try {
           // Compress then convert to base64
-          const compressed = await compressImage(fileUpload.file);
+          const compressed = await compressImage(fileUpload.file, { maxDim: 1024, quality: 0.7, targetMaxBytes: 600 * 1024 });
           const reader = new FileReader();
           reader.onload = async (e) => {
             if (e.target?.result) {
