@@ -267,6 +267,32 @@ If none, use [] and false. Respond ONLY JSON.` },
     }
   }
 
+  private async checkFamousCharacter(imageUrl: string): Promise<{ names: string[]; block: boolean } | null> {
+    try {
+      const resp = await this.openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: `Does this image depict any well-known fictional characters or branded mascots (e.g., Superman, Batman, Spider-Man, Mickey Mouse), or recognizable brand logo elements? Return STRICT JSON: {"names": string[], "block": boolean}. Set block=true if yes. Only JSON.` },
+              { type: "image_url", image_url: { url: imageUrl } }
+            ]
+          }
+        ],
+        max_tokens: 120,
+        temperature: 0.0,
+        response_format: { type: "json_object" }
+      });
+      const j = JSON.parse(resp.choices[0]?.message?.content || '{}');
+      const names = Array.isArray(j.names) ? j.names.map((s: any) => String(s)).filter(Boolean) : [];
+      const block = Boolean(j.block);
+      return { names, block };
+    } catch {
+      return null;
+    }
+  }
+
   private enhanceAnalysisWithAIControls(rawAnalysis: any): AdvancedAnalysisResult {
     const enhanced: any = { ...rawAnalysis };
 
