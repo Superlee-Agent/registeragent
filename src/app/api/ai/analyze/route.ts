@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 
     const openai = new OpenAI({ apiKey });
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: `Analyze image for IP registration metadata. Return JSON: {description, suggestedTitle, detectedObjects[], style?, mood?}` },
         { role: 'user', content: [
