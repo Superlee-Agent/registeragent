@@ -13,7 +13,7 @@ export class FallbackAIDetection {
   async analyzeImageBasic(imageUrl: string): Promise<{ analysis: AdvancedAnalysisResult; recommendation: SimpleRecommendation }> {
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: [
           {
             role: "user",
