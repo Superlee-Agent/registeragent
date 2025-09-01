@@ -406,15 +406,27 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
       )}
 
       {/* Register Button */}
-      {fileUpload.file && (
+      {fileUpload.file && !blockedByPolicy && (
         <button
           onClick={handleRegister}
           disabled={!canRegister}
           className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-ai-primary to-ai-accent text-white font-medium hover:from-ai-primary/80 hover:to-ai-accent/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
         >
-          {canRegister ? 'Register IP with AI Analysis' : 'Complete information to continue'}
+          {canRegister ? 'Register IP with AI Analysis' : (requireSelfie && !identityVerified ? 'Verify selfie to continue' : 'Complete information to continue')}
         </button>
       )}
+
+      {/* Modals */}
+      <CameraCapture
+        open={showCamera}
+        onClose={() => setShowCamera(false)}
+        onCapture={async (f) => { await verifyWithCapture(f); setShowCamera(false); }}
+        onFallback={() => setShowCamera(false)}
+      />
+      <ManualReviewModal
+        open={showManualReview}
+        onClose={() => setShowManualReview(false)}
+      />
 
       {/* Enhanced Summary */}
       {fileUpload.file && canRegister && (
