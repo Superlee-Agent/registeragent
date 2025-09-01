@@ -161,7 +161,7 @@ export function MessageList({ messages, onButtonClick, onControlChange, isTyping
                               disabled={!!message.controls.aiLocked}
                               onChange={(e) => onControlChange?.({ aiLearning: e.target.checked })}
                             />
-                            <span>AI Learning</span>
+                            <span>AI Learning on/off</span>
                           </label>
                           <label className="flex items-center gap-2">
                             <span>Mint Fee $</span>
