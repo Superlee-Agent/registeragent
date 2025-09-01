@@ -351,8 +351,11 @@ export function EnhancedAgentOrchestrator() {
         }
       } catch {}
 
-      // Identity requirement when analysis mentions identity/face
-      const requiresIdentity = /identity|face|faces|portrait|person|people/.test(ipText.toLowerCase());
+      // Identity requirement using AI flags or text hints
+      let requiresIdentity = /identity|face|faces|portrait|person|people/.test(ipText.toLowerCase());
+      if (aiResult && aiResult.content.containsHumanFace && !aiResult.content.famousPersonDetected) {
+        requiresIdentity = true;
+      }
       if (requiresIdentity) {
         setReferenceFile(currentFile);
         setAwaitingIdentity(true);
@@ -361,7 +364,11 @@ export function EnhancedAgentOrchestrator() {
       // Compose buttons based on analysis
       let buttons: string[] = [];
 
+      const blockedByPolicy = !!(aiResult && (aiResult.content.famousBrandOrCharacterDetected || aiResult.content.famousPersonDetected));
+
       if (dupFound) {
+        buttons = ["Upload File", "Submit for Review", "Copy dHash"];
+      } else if (blockedByPolicy) {
         buttons = ["Upload File", "Submit for Review", "Copy dHash"];
       } else if (isRisky) {
         buttons = ["Upload File", "Submit for Review", "Copy dHash"];
@@ -376,7 +383,7 @@ export function EnhancedAgentOrchestrator() {
           buttons = ["🧠 Smart License", "Continue Registration", ...(allowCustom ? ["Custom License"] : []), "Copy dHash"];
         }
       }
-      if (faceDetected || requiresIdentity) {
+      if ((faceDetected || requiresIdentity) && !blockedByPolicy) {
         const cameraOnly = (process.env.NEXT_PUBLIC_CAMERA_ONLY_ON_FACE ?? 'false') === 'true';
         if (!buttons.includes("Take Photo")) buttons = ["Take Photo", ...buttons];
         if (cameraOnly) {
