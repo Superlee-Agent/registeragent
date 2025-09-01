@@ -226,7 +226,7 @@ export function EnhancedAgentOrchestrator() {
 
       if (aiResult && aiRecommendation) {
         const isHighConfidenceAI = aiResult.aiDetection.isAIGenerated && aiResult.aiDetection.confidence >= 0.85;
-        const mainTitle = isHighConfidenceAI ? '🤖 AI Content' : '✨ Great Work';
+        const mainTitle = isHighConfidenceAI ? '��� AI Content' : '✨ Great Work';
         const subtitle = isHighConfidenceAI ? 'This looks like it was made by AI' : 'Looks human-made';
         // Policy override: Human-created defaults to Commercial Remix
         const primaryPolicy = !aiResult.aiDetection.isAIGenerated ? 'remix' : aiResult.licenseRecommendation.primary;
@@ -601,8 +601,7 @@ License Type: ${result.licenseType}`;
         const header = 'Superlee recommendation applied 🎉';
         const humanLine = isHuman ? '✅ Human content detected' : '🤖 AI content detected';
         const core = `License: Commercial Remix\nCommercial use: Yes\nDerivatives: Yes`;
-        const controlsIntro = `\n\nAI Learning on/off\nMint Fee $\nDefault: $${isHuman ? 10 : (st.mintingFee || 0)} (klik kolom input untuk edit)\nRev Share %\nDefault: ${(isHuman ? 10 : (st.commercialRevShare || 0))}% (klik kolom input untuk edit)`;
-        const msg = `${header}\n\n${humanLine}\n\n${core}${controlsIntro}`;
+        const msg = `${header}\n\n${humanLine}\n\n${core}`;
 
         try { chatAgent.updateLastMessage({ buttons: [] }); } catch {}
         const inlineButtons = [
