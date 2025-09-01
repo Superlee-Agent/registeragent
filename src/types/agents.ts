@@ -15,6 +15,13 @@ export type Message = {
     url: string;
   }[];
   isLoading?: boolean;
+  controls?: {
+    aiLearning?: boolean;
+    mintingFee?: number;
+    revShare?: number;
+    aiLocked?: boolean; // when true, aiLearning toggle disabled
+    editable?: boolean; // when false, inputs disabled
+  };
 };
 
 // Plan types
