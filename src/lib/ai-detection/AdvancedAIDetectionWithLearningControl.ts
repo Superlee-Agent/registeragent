@@ -150,6 +150,15 @@ Return ONLY valid JSON.`
           analysis.content.detectedCelebrities = Array.from(new Set([...(analysis.content.detectedCelebrities||[]), ...norm(cap.entities).filter(e => celebHints.some(h => e.toLowerCase().includes(h)))]));
           analysis.content.detectedCharacters = Array.from(new Set([...(analysis.content.detectedCharacters||[]), ...norm(cap.entities).filter(e => brandHints.some(h => e.toLowerCase().includes(h)))]));
         }
+
+        // Targeted superhero check (Superman-like)
+        if (!analysis.content.famousBrandOrCharacterDetected) {
+          const sup = await this.checkSuperman(imageUrl);
+          if (sup?.superman === true) {
+            analysis.content.famousBrandOrCharacterDetected = true;
+            analysis.content.detectedCharacters = Array.from(new Set([...(analysis.content.detectedCharacters||[]), 'Superman']));
+          }
+        }
       } catch {}
 
       // Enhance analysis with business logic
@@ -214,6 +223,30 @@ If none, use [] and false. Respond ONLY JSON.` },
       });
       const j = JSON.parse(resp.choices[0]?.message?.content || '{}');
       return { caption: String(j.caption || ''), entities: Array.isArray(j.entities) ? j.entities.map(String) : [] };
+    } catch {
+      return null;
+    }
+  }
+
+  private async checkSuperman(imageUrl: string): Promise<{ superman: boolean } | null> {
+    try {
+      const resp = await this.openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: `Does this image depict Superman or a Superman-like character? Consider cues: blue suit, red cape, large yellow 'S' chest emblem, DC Comics style. Respond STRICT JSON: {"superman": true|false}. Only JSON.` },
+              { type: "image_url", image_url: { url: imageUrl } }
+            ]
+          }
+        ],
+        max_tokens: 50,
+        temperature: 0.0,
+        response_format: { type: "json_object" }
+      });
+      const j = JSON.parse(resp.choices[0]?.message?.content || '{}');
+      return { superman: Boolean(j.superman) };
     } catch {
       return null;
     }
