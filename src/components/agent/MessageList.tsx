@@ -123,7 +123,9 @@ export function MessageList({ messages, onButtonClick, onControlChange, isTyping
                           : "bg-white/8 border border-white/10 text-white rounded-tl-md hover:bg-white/12 hover:border-white/20"
                       }`}
                       onMouseDown={(e) => {
-                        // Prevent message clicks from stealing focus from the input
+                        // Allow inputs/buttons inside bubble to receive focus
+                        const target = e.target as HTMLElement;
+                        if (target && target.closest('input, textarea, select, button, label')) return;
                         e.preventDefault();
                       }}
                     >
