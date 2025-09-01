@@ -161,33 +161,38 @@ export function MessageList({ messages, onButtonClick, onControlChange, isTyping
                               disabled={!!message.controls.aiLocked}
                               onChange={(e) => onControlChange?.({ aiLearning: e.target.checked })}
                             />
-                            <span>AI Learning on/off</span>
+                            <span>AI Learning</span>
                           </label>
-                          <label className="flex items-center gap-2">
+                          <div className="flex items-center gap-2">
                             <span>Mint Fee $</span>
                             <input
                               type="number"
+                              inputMode="decimal"
                               min={0}
                               step={0.0001}
+                              autoFocus
                               value={Number.isFinite(message.controls.mintingFee as number) ? Number(message.controls.mintingFee) : 0}
                               onChange={(e) => onControlChange?.({ mintingFee: Number(e.target.value) })}
-                              className="w-24 bg-transparent border border-white/20 rounded p-1 disabled:opacity-50"
+                              className="w-28 bg-white/5 border border-white/20 rounded px-2 py-1 text-white placeholder-white/50 focus:border-sky-400 focus:ring-1 focus:ring-sky-400/40 disabled:opacity-50"
+                              placeholder={String(Number.isFinite(message.controls.mintingFee as number) ? Number(message.controls.mintingFee) : 0)}
                               disabled={message.controls.editable === false}
                             />
-                          </label>
-                          <label className="flex items-center gap-2">
+                          </div>
+                          <div className="flex items-center gap-2">
                             <span>Rev Share %</span>
                             <input
                               type="number"
+                              inputMode="numeric"
                               min={0}
                               max={100}
                               step={1}
                               value={Number.isFinite(message.controls.revShare as number) ? Number(message.controls.revShare) : 0}
                               onChange={(e) => onControlChange?.({ revShare: Number(e.target.value) })}
-                              className="w-20 bg-transparent border border-white/20 rounded p-1 disabled:opacity-50"
+                              className="w-24 bg-white/5 border border-white/20 rounded px-2 py-1 text-white placeholder-white/50 focus:border-sky-400 focus:ring-1 focus:ring-sky-400/40 disabled:opacity-50"
+                              placeholder={String(Number.isFinite(message.controls.revShare as number) ? Number(message.controls.revShare) : 0)}
                               disabled={message.controls.editable === false}
                             />
-                          </label>
+                          </div>
                         </div>
                       )}
 
