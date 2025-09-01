@@ -31,6 +31,7 @@ export async function POST(req: Request) {
     let analysis: AdvancedAnalysisResult;
     let simpleRecommendation: any;
     let detector: AdvancedAIDetectionWithLearningControl | null = null;
+    let classification: { id: number; text: string } | null = null;
 
     try {
       // Prefer simplified preset classification flow for immediate decisioning
