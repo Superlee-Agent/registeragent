@@ -86,7 +86,7 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
       );
       const recommendedLicense: LicenseSettings = {
         pilType,
-        commercialUse: (st.mintingFee || 0) > 0,
+        commercialUse: (pilType === 'commercial_use' || pilType === 'commercial_remix') || ((st.mintingFee || 0) > 0),
         derivativesAllowed: st.derivativesAllowed,
         derivativesAttribution: true,
         attribution: true,
@@ -101,13 +101,13 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
     }
   }, [analysis, recommendation, useRecommendedLicense]);
 
-  // Sync commercialUse with licensePrice: 0 => false, >0 => true
+  // Sync commercialUse with licensePrice, but force ON for commercial_* types
   useEffect(() => {
-    const shouldBeCommercial = (selectedLicense.licensePrice || 0) > 0;
+    const shouldBeCommercial = (selectedLicense.pilType === 'commercial_use' || selectedLicense.pilType === 'commercial_remix') || ((selectedLicense.licensePrice || 0) > 0);
     if (selectedLicense.commercialUse !== shouldBeCommercial) {
       setSelectedLicense(prev => ({ ...prev, commercialUse: shouldBeCommercial }));
     }
-  }, [selectedLicense.licensePrice]);
+  }, [selectedLicense.licensePrice, selectedLicense.pilType]);
 
   const handleFileRemove = () => {
     fileUpload.removeFile();
