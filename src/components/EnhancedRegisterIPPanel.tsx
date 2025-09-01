@@ -8,8 +8,11 @@ import { LicenseRecommendationCard } from "./LicenseRecommendationCard";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { useAdvancedAIDetection } from "@/hooks/useAdvancedAIDetection";
 import { useAccount } from "wagmi";
-import { DEFAULT_LICENSE_SETTINGS, type LicenseSettings, createLicenseTerms } from "@/lib/license/terms";
+import { DEFAULT_LICENSE_SETTINGS, type LicenseSettings } from "@/lib/license/terms";
 import { AdvancedAnalysisResult, SimpleRecommendation, AIMetadata } from "@/types/ai-detection";
+import { CameraCapture } from "./agent/CameraCapture";
+import ManualReviewModal from "./agent/ManualReviewModal";
+import { getFaceEmbedding, cosineSimilarity, countFaces, preloadFaceModels } from "@/lib/utils/face";
 
 interface EnhancedRegisterIPPanelProps {
   onRegister?: (
