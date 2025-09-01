@@ -40,6 +40,9 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
   const [showLicenseSelector, setShowLicenseSelector] = useState(false);
   const [useRecommendedLicense, setUseRecommendedLicense] = useState(false);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
+  const [identityVerified, setIdentityVerified] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [showManualReview, setShowManualReview] = useState(false);
 
   // Auto-analyze when file is uploaded
   useEffect(() => {
