@@ -227,9 +227,11 @@ export function EnhancedAgentOrchestrator() {
         const isHighConfidenceAI = aiResult.aiDetection.isAIGenerated && aiResult.aiDetection.confidence >= 0.85;
         const mainTitle = isHighConfidenceAI ? '🤖 AI Content' : '✨ Great Work';
         const subtitle = isHighConfidenceAI ? 'This looks like it was made by AI' : 'Looks human-made';
-        const nextAction = aiResult.licenseRecommendation.primary === 'commercial'
+        // Policy override: Human-created defaults to Commercial Remix
+        const primaryPolicy = !aiResult.aiDetection.isAIGenerated ? 'remix' : aiResult.licenseRecommendation.primary;
+        const nextAction = primaryPolicy === 'commercial'
           ? 'Sell (Commercial License)'
-          : aiResult.licenseRecommendation.primary === 'remix'
+          : primaryPolicy === 'remix'
           ? 'Register Remix License'
           : 'Share for Free';
 
