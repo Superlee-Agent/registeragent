@@ -599,37 +599,16 @@ Instructions:
 - Choose exactly one Answer from the list (1-12) that best fits the image.
 - Respond ONLY in strict JSON with keys exactly: {"answer_id": <1-12>, "answer_text": "<paste the exact text of the chosen Answer block>"}. No markdown, no extra keys, no prose.`;
 
-    let raw = '{}';
-    const geminiKey = process.env.GEMINI_API_KEY;
-    if (geminiKey) {
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
-      const parts: any[] = [{ text: prompt }];
-      try {
-        // If data URL, extract base64 and mime
-        const m = String(imageUrl || '').match(/^data:(.+?);base64,(.+)$/);
-        if (m) {
-          parts.push({ inline_data: { mime_type: m[1], data: m[2] } });
-        } else {
-          // Fallback: provide URL as text context
-          parts.push({ text: `Image URL: ${imageUrl}` });
-        }
-      } catch {}
-      const body = { contents: [{ role: 'user', parts }], generationConfig: { temperature: 0, maxOutputTokens: 300 } };
-      const r = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      const jr: any = await r.json();
-      raw = jr?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    } else {
-      const resp = await this.openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "user", content: [ { type: "text", text: prompt }, { type: "image_url", image_url: { url: imageUrl, detail: 'low' } } ] as any }
-        ],
-        max_tokens: 300,
-        temperature: 0,
-        response_format: { type: "json_object" }
-      }, { timeout: 10000 });
-      raw = resp.choices[0]?.message?.content || '{}';
-    }
+    const resp = await this.openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "user", content: [ { type: "text", text: prompt }, { type: "image_url", image_url: { url: imageUrl, detail: 'low' } } ] as any }
+      ],
+      max_tokens: 300,
+      temperature: 0,
+      response_format: { type: "json_object" }
+    }, { timeout: 10000 });
+    const raw = resp.choices[0]?.message?.content || '{}';
 
     console.log('🤖 Model raw response:', raw.slice(0, 200) + '...');
     let j: any = {};
