@@ -117,7 +117,8 @@ Return ONLY valid JSON.`
           }
         ],
         max_tokens: 2000,
-        temperature: 0.3
+        temperature: 0.1,
+        response_format: { type: "json_object" }
       });
 
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -203,6 +204,10 @@ Return ONLY valid JSON.`
           // Eligibility and requirements
           if (decision.includes('block') || enhancedAnalysis.content.famousBrandOrCharacterDetected || enhancedAnalysis.content.famousPersonDetected) {
             enhancedAnalysis.ipEligibility.isEligible = false;
+            if (!enhancedAnalysis.ipEligibility.reasons) enhancedAnalysis.ipEligibility.reasons = [];
+            if (decision.includes('block') && !enhancedAnalysis.ipEligibility.reasons.some(r => String(r).toLowerCase().includes('policy decision'))) {
+              enhancedAnalysis.ipEligibility.reasons.push('Policy decision: Block');
+            }
             if (enhancedAnalysis.content.famousBrandOrCharacterDetected && !enhancedAnalysis.ipEligibility.reasons.includes('Contains famous brand/character')) {
               enhancedAnalysis.ipEligibility.reasons.push('Contains famous brand/character');
             }
