@@ -368,7 +368,14 @@ export function EnhancedAgentOrchestrator() {
       // Compose buttons based on analysis
       let buttons: string[] = [];
 
-      const blockedByPolicy = !!(aiResult && (aiResult.content.famousBrandOrCharacterDetected || aiResult.content.famousPersonDetected));
+      const blockedByPolicy = !!(aiResult && (
+        aiResult.content.famousBrandOrCharacterDetected ||
+        aiResult.content.famousPersonDetected ||
+        (Array.isArray(aiResult.ipEligibility?.reasons) && aiResult.ipEligibility.reasons.some(r => {
+          const t = String(r).toLowerCase();
+          return t.includes('famous brand') || t.includes('celebrity');
+        }))
+      ));
 
       if (dupFound) {
         buttons = ["Upload File", "Submit for Review", "Copy dHash"];
