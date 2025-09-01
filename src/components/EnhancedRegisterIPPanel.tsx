@@ -154,7 +154,7 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
     setShowLicenseSelector(true);
   };
 
-  const canRegister = fileUpload.file && title.trim() && description.trim();
+  const canRegister = !!(fileUpload.file && title.trim() && description.trim() && !blockedByPolicy && (!requireSelfie || identityVerified));
 
   return (
     <div className={`space-y-6 ${className}`}>
