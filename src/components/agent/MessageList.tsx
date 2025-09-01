@@ -5,6 +5,7 @@ import type { Message } from "@/types/agents";
 interface MessageListProps {
   messages: Message[];
   onButtonClick?: (buttonText: string) => void;
+  onControlChange?: (changes: { aiLearning?: boolean; mintingFee?: number; revShare?: number }) => void;
   isTyping?: boolean;
 }
 
@@ -51,7 +52,7 @@ function TypingIndicator() {
   );
 }
 
-export function MessageList({ messages, onButtonClick, isTyping }: MessageListProps) {
+export function MessageList({ messages, onButtonClick, onControlChange, isTyping }: MessageListProps) {
   if (messages.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4">
@@ -148,6 +149,47 @@ export function MessageList({ messages, onButtonClick, isTyping }: MessageListPr
                           </pre>
                         )}
                       </div>
+
+                      {/* Inline controls */}
+                      {message.controls && (
+                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                          <label className="inline-flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              className="accent-sky-400"
+                              checked={!!message.controls.aiLearning}
+                              disabled={!!message.controls.aiLocked}
+                              onChange={(e) => onControlChange?.({ aiLearning: e.target.checked })}
+                            />
+                            <span>AI Learning</span>
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <span>Mint Fee $</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step={0.0001}
+                              value={Number.isFinite(message.controls.mintingFee as number) ? Number(message.controls.mintingFee) : 0}
+                              onChange={(e) => onControlChange?.({ mintingFee: Number(e.target.value) })}
+                              className="w-24 bg-transparent border border-white/20 rounded p-1 disabled:opacity-50"
+                              disabled={message.controls.editable === false}
+                            />
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <span>Rev Share %</span>
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step={1}
+                              value={Number.isFinite(message.controls.revShare as number) ? Number(message.controls.revShare) : 0}
+                              onChange={(e) => onControlChange?.({ revShare: Number(e.target.value) })}
+                              className="w-20 bg-transparent border border-white/20 rounded p-1 disabled:opacity-50"
+                              disabled={message.controls.editable === false}
+                            />
+                          </label>
+                        </div>
+                      )}
 
                       {/* Image display */}
                       {message.image && (
