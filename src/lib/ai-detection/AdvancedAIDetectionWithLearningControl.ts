@@ -86,6 +86,7 @@ export class AdvancedAIDetectionWithLearningControl {
 
 Policy rules to apply to your JSON:
 - If famousBrandOrCharacterDetected = true OR famousPersonDetected = true → set ipEligibility.isEligible = false and add reasons explaining the restriction (brand/character or celebrity detected). Keep score but mark ineligible.
+- Be conservative in celebrity/brand detection: if the subject closely resembles a widely-known public figure (e.g., Elon Musk, Taylor Swift, Cristiano Ronaldo) or famous brand/character (e.g., Nike, Disney, Mickey Mouse), set the corresponding flag to true. When uncertain, prefer true over false negatives.
 - If containsHumanFace = true AND famousPersonDetected = false → add a requirement: "Selfie verification required".
 - License default should be "Commercial Remix" semantics (commercialUse=true and derivativesAllowed=true). Use primary = "remix" and set suggestedTerms accordingly.
 
