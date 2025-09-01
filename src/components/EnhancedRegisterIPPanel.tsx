@@ -11,6 +11,7 @@ import { useAccount } from "wagmi";
 import { DEFAULT_LICENSE_SETTINGS, type LicenseSettings } from "@/lib/license/terms";
 import { AdvancedAnalysisResult, SimpleRecommendation, AIMetadata } from "@/types/ai-detection";
 import { CameraCapture } from "./agent/CameraCapture";
+import { compressImage } from "@/lib/utils/image";
 import ManualReviewModal from "./agent/ManualReviewModal";
 import { getFaceEmbedding, cosineSimilarity, countFaces, preloadFaceModels } from "@/lib/utils/face";
 
@@ -49,7 +50,8 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
     if (fileUpload.file && fileUpload.previewUrl && !hasAnalyzed) {
       const analyzeFile = async () => {
         try {
-          // Convert file to base64
+          // Compress then convert to base64
+          const compressed = await compressImage(fileUpload.file);
           const reader = new FileReader();
           reader.onload = async (e) => {
             if (e.target?.result) {
@@ -58,7 +60,7 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
               setHasAnalyzed(true);
             }
           };
-          reader.readAsDataURL(fileUpload.file);
+          reader.readAsDataURL(compressed);
         } catch (err) {
           console.error('Auto-analysis failed:', err);
         }
