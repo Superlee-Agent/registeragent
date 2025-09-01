@@ -157,7 +157,10 @@ Return ONLY valid JSON.`
           {
             role: "user",
             content: [
-              { type: "text", text: `Identify any well-known public figures, brands/logos, and fictional characters in this image. Return strict JSON with keys: celebrities (string[]), brands (string[]), characters (string[]), logoPresent (boolean). If none, use [] and false. Respond ONLY JSON.` },
+              { type: "text", text: `Identify any well-known public figures, brands/logos, and fictional characters in this image.
+Return STRICT JSON with keys: celebrities (string[]), brands (string[]), characters (string[]), logoPresent (boolean).
+Be conservative: if it resembles iconic characters (e.g., Superman blue suit + red cape + 'S' emblem; Batman cowl + bat emblem; Spider-Man red/blue web suit), include them in characters.
+If none, use [] and false. Respond ONLY JSON.` },
               { type: "image_url", image_url: { url: imageUrl } }
             ]
           }
@@ -347,7 +350,16 @@ Return ONLY valid JSON.`
     }
 
     const finalScore = Math.max(0, Math.min(100, score));
-    const isEligible = finalScore >= 50; // Lower threshold due to AI restrictions
+    let isEligible = finalScore >= 50; // Lower threshold due to AI restrictions
+
+    // Enforce blocking policy for celebrities/brands/characters regardless of score
+    const blocked = !!(analysis.content?.famousBrandOrCharacterDetected || analysis.content?.famousPersonDetected);
+    if (blocked) {
+      isEligible = false;
+      if (analysis.content?.famousBrandOrCharacterDetected && !reasons.includes('Contains famous brand/character')) reasons.push('Contains famous brand/character');
+      if (analysis.content?.famousPersonDetected && !reasons.includes('Contains celebrity face')) reasons.push('Contains celebrity face');
+      if (!risks.includes('High legal risk: trademark/publicity rights')) risks.push('High legal risk: trademark/publicity rights');
+    }
 
     return {
       isEligible,
