@@ -136,6 +136,7 @@ Return ONLY valid JSON.`
     enhanced.aiDetection.confidence = Math.max(0, Math.min(1, Number(enhanced.aiDetection.confidence || 0)));
     enhanced.aiDetection.indicators = Array.isArray(enhanced.aiDetection.indicators) ? enhanced.aiDetection.indicators : [];
     enhanced.content = enhanced.content || { tags: [] };
+    enhanced.content.description = typeof enhanced.content.description === 'string' ? enhanced.content.description : '';
     enhanced.content.tags = Array.isArray(enhanced.content.tags) ? enhanced.content.tags : [];
     enhanced.content.containsHumanFace = Boolean(enhanced.content.containsHumanFace);
     enhanced.content.faceCount = Number.isFinite(enhanced.content.faceCount) ? enhanced.content.faceCount : 0;
@@ -144,6 +145,22 @@ Return ONLY valid JSON.`
     enhanced.licenseRecommendation = enhanced.licenseRecommendation || { suggestedTerms: {} };
     enhanced.licenseRecommendation.suggestedTerms = enhanced.licenseRecommendation.suggestedTerms || {};
     enhanced.ipEligibility = enhanced.ipEligibility || { score: 0, reasons: [], risks: [], requirements: [] };
+
+    // Heuristic boost: infer celebrity/brand mentions from description/tags
+    try {
+      const text = `${enhanced.content.description} ${enhanced.content.tags.join(' ')}`.toLowerCase();
+      const famousPeople = ['elon musk','taylor swift','barack obama','beyonce','rihanna','cristiano ronaldo','lionel messi','donald trump','bill gates','mark zuckerberg','selena gomez'];
+      const brands = ['nike','adidas','apple','microsoft','google','coca-cola','mcdonalds','mcdonald\'s','disney','tesla','starbucks','samsung','netflix','amazon'];
+      const characters = ['mickey','mickey mouse','minnie','spiderman','spider-man','batman','superman','pikachu','hello kitty','spongebob','doraemon','naruto'];
+      if (!enhanced.content.famousPersonDetected && famousPeople.some(n => text.includes(n))) {
+        enhanced.content.famousPersonDetected = true;
+        enhanced.content.tags = Array.from(new Set([...(enhanced.content.tags||[]), 'Celebrity-Detected']));
+      }
+      if (!enhanced.content.famousBrandOrCharacterDetected && (brands.some(n => text.includes(n)) || characters.some(n => text.includes(n)))) {
+        enhanced.content.famousBrandOrCharacterDetected = true;
+        enhanced.content.tags = Array.from(new Set([...(enhanced.content.tags||[]), 'BrandOrCharacter-Detected']))
+      }
+    } catch {}
 
     const conf = enhanced.aiDetection.confidence;
 
