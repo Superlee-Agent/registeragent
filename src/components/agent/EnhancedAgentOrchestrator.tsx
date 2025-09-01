@@ -163,7 +163,8 @@ export function EnhancedAgentOrchestrator() {
     }, 100);
 
     try {
-      // Convert file to base64 for AI analysis
+      // Compress then convert to base64 for AI analysis (avoid oversized payloads)
+      const compressedForAI = await compressImage(currentFile);
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve) => {
         reader.onload = (e) => {
@@ -172,7 +173,7 @@ export function EnhancedAgentOrchestrator() {
             resolve(base64);
           }
         };
-        reader.readAsDataURL(currentFile);
+        reader.readAsDataURL(compressedForAI);
       });
 
       const base64 = await base64Promise;
@@ -611,7 +612,7 @@ License Type: ${result.licenseType}`;
         const st = lastAIResult.licenseRecommendation.suggestedTerms;
 
         // Build message text as requested
-        const header = 'Superlee recommendation applied 🎉';
+        const header = 'Superlee recommendation applied ���';
         const humanLine = isHuman ? '✅ Human content detected' : '🤖 AI content detected';
         const core = `License: Commercial Remix\nCommercial use: Yes\nDerivatives: Yes`;
         const msg = `${header}\n\n${humanLine}\n\n${core}`;
