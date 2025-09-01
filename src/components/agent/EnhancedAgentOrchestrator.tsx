@@ -373,7 +373,7 @@ export function EnhancedAgentOrchestrator() {
         aiResult.content.famousPersonDetected ||
         (Array.isArray(aiResult.ipEligibility?.reasons) && aiResult.ipEligibility.reasons.some(r => {
           const t = String(r).toLowerCase();
-          return t.includes('famous brand') || t.includes('celebrity') || t.includes('policy decision: block') || t.includes('block');
+          return t.includes('famous brand') || t.includes('celebrity') || t.includes('character') || t.includes('policy decision: block') || t.includes('block');
         }))
       ));
 
