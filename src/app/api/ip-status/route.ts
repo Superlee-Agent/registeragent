@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import OpenAI from 'openai';
 import crypto from 'node:crypto';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+// Note: OpenAI client will be created inside the handler if needed
 
 const IP_STATUS_CACHE_TTL_MS = Number.parseInt(process.env.IP_STATUS_CACHE_TTL_MS || '21600000', 10);
 const ipStatusCache = new Map<string, { ts: number; payload: any }>();
@@ -99,23 +99,51 @@ export async function POST(req: Request) {
       '- Keep fields ≤ 280 chars. No extra fields, no prose, no code fences.'
     ].join('\n');
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: [
-          { type: 'text', text: 'Analyze for IP safety, fair use, and AI-generation. Return only the JSON object.' },
-          { type: 'image_url', image_url: { url: dataUrl, detail: 'low' } }
-        ] as any }
-      ],
-      temperature: 0.1,
-      top_p: 0,
-      max_tokens: 160,
-      response_format: { type: 'json_object' }
-    }, { timeout: 4000 });
+    let raw = '';
+    const geminiKey = process.env.GEMINI_API_KEY;
+    const openaiKey = process.env.OPENAI_API_KEY;
 
-    const raw = completion.choices[0]?.message?.content ?? '{}';
+    if (!geminiKey && !openaiKey) {
+      return Response.json({ error: 'AI not configured' }, { status: 200 });
+    }
+
+    if (geminiKey) {
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+      const body = {
+        contents: [{
+          role: 'user',
+          parts: [
+            { text: systemPrompt + '\nAnalyze for IP safety, fair use, and AI-generation. Return only the JSON object.' },
+            { inline_data: { mime_type: file.type, data: dataUrl.split(',')[1] } }
+          ]
+        }],
+        generationConfig: { temperature: 0, maxOutputTokens: 200 }
+      };
+      const r = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const jr: any = await r.json();
+      raw = jr?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    } else {
+      const openai = new OpenAI({ apiKey: openaiKey! });
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: [
+            { type: 'text', text: 'Analyze for IP safety, fair use, and AI-generation. Return only the JSON object.' },
+            { type: 'image_url', image_url: { url: dataUrl, detail: 'low' } }
+          ] as any }
+        ],
+        temperature: 0.1,
+        top_p: 0,
+        max_tokens: 160,
+        response_format: { type: 'json_object' }
+      }, { timeout: 4000 });
+      raw = completion.choices[0]?.message?.content ?? '{}';
+    }
     const extracted = extractJsonObject(raw) || {};
+    if (!extracted || typeof extracted !== 'object') {
+      return Response.json({ error: 'Invalid AI response' }, { status: 200 });
+    }
 
     let status = clip(extracted.status || '');
     let risk = clip(extracted.risk || '');
