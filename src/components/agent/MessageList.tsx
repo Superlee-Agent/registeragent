@@ -170,7 +170,6 @@ export function MessageList({ messages, onButtonClick, onControlChange, isTyping
                               inputMode="decimal"
                               min={0}
                               step={0.0001}
-                              autoFocus
                               value={Number.isFinite(message.controls.mintingFee as number) ? Number(message.controls.mintingFee) : 0}
                               onChange={(e) => onControlChange?.({ mintingFee: Number(e.target.value) })}
                               className="w-28 bg-white/5 border border-white/20 rounded px-2 py-1 text-white placeholder-white/50 focus:border-sky-400 focus:ring-1 focus:ring-sky-400/40 disabled:opacity-50"
