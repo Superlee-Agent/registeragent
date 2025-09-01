@@ -218,7 +218,7 @@ export function EnhancedAgentOrchestrator() {
         console.log('🔍 Classification received:', classification);
         if (classification?.text) {
           presetAnswerText = String(classification.text);
-          console.log('✅ Using preset text:', presetAnswerText.slice(0, 100) + '...');
+          console.log('��� Using preset text:', presetAnswerText.slice(0, 100) + '...');
         } else {
           console.log('❌ No classification text found');
         }
@@ -360,16 +360,23 @@ export function EnhancedAgentOrchestrator() {
           const faces = await detector.detect(bitmap as any);
           faceDetected = Array.isArray(faces) && faces.length > 0;
         } else {
-          // Fallback: keyword hints from OpenAI text
-          const ipAll = ipText.toLowerCase();
-          faceDetected = /face|faces|portrait|person|people|identity/.test(ipAll);
+          // Fallback: use positive hints only, avoid "no human face" false positives
+          const text = ipText.toLowerCase();
+          const positiveHint = /(contains an? (ordinary )?human face|human face \(not famous\)|selfie verification required|take selfie photo)/.test(text);
+          const negativeHint = /no human face/.test(text);
+          faceDetected = positiveHint && !negativeHint;
         }
       } catch {}
 
       // Identity requirement using AI flags or text hints
-      let requiresIdentity = /identity|face|faces|portrait|person|people/.test(ipText.toLowerCase());
+      let requiresIdentity = false;
       if (aiResult && aiResult.content.containsHumanFace && !aiResult.content.famousPersonDetected) {
         requiresIdentity = true;
+      } else if (!aiResult) {
+        const text = ipText.toLowerCase();
+        const positiveHint = /(contains an? (ordinary )?human face|human face \(not famous\)|selfie verification required|take selfie photo)/.test(text);
+        const negativeHint = /no human face/.test(text);
+        requiresIdentity = positiveHint && !negativeHint;
       }
       if (requiresIdentity) {
         setReferenceFile(currentFile);
