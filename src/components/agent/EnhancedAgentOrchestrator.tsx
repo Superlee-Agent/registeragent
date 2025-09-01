@@ -579,35 +579,31 @@ License Type: ${result.licenseType}`;
     } else if (buttonText === "🧠 Smart License") {
       // Apply AI-recommended license settings from last analysis
       if (lastAIResult && lastAIRec) {
+        const isHuman = !lastAIResult.aiDetection.isAIGenerated;
         const aiLicense = lastAIResult.licenseRecommendation.primary;
-        if (aiLicense === 'commercial') {
-          setSelectedPilType('commercial_remix');
-          setSelectedRevShare(lastAIResult.licenseRecommendation.suggestedTerms.commercialRevShare);
-          setSelectedLicensePrice(lastAIResult.licenseRecommendation.suggestedTerms.mintingFee);
-        } else if (aiLicense === 'remix') {
-          setSelectedPilType('commercial_remix');
-          setSelectedRevShare(lastAIResult.licenseRecommendation.suggestedTerms.commercialRevShare);
-          setSelectedLicensePrice(lastAIResult.licenseRecommendation.suggestedTerms.mintingFee);
+        // Force Commercial Remix path
+        setSelectedPilType('commercial_remix');
+        // Defaults per request
+        if (isHuman) {
+          setSelectedRevShare(10);
+          setSelectedLicensePrice(10);
         } else {
-          setSelectedPilType('open_use');
-          setSelectedRevShare(0);
-          setSelectedLicensePrice(0);
+          setSelectedRevShare(lastAIResult.licenseRecommendation.suggestedTerms.commercialRevShare || 0);
+          setSelectedLicensePrice(lastAIResult.licenseRecommendation.suggestedTerms.mintingFee || 0);
         }
-        setSelectedAiLearning(!lastAIResult.aiDetection.isAIGenerated);
+        setSelectedAiLearning(isHuman);
 
         const minForCustom = Number.parseInt(process.env.NEXT_PUBLIC_CUSTOM_LICENSE_MIN || '80', 10);
-        const allowCustom = lastAIResult.ipEligibility.score >= minForCustom || !lastAIResult.aiDetection.isAIGenerated;
+        const allowCustom = lastAIResult.ipEligibility.score >= minForCustom || isHuman;
         const st = lastAIResult.licenseRecommendation.suggestedTerms;
-        const body = t("smart.applied.body", {
-          message: lastAIRec.message,
-          license: 'Commercial Remix',
-          aiLearning: selectedAiLearning ? '✅ Your choice' : '🚫 Disabled',
-          mintingFee: selectedLicensePrice || st.mintingFee,
-          revShare: selectedRevShare || st.commercialRevShare,
-          commercialUse: 'Yes',
-          derivatives: 'Yes',
-        });
-        const msg = `${t("smart.applied.title")}\n\n${body}`;
+
+        // Build message text as requested
+        const header = 'Superlee recommendation applied 🎉';
+        const humanLine = isHuman ? '✅ Human content detected' : '🤖 AI content detected';
+        const core = `License: Commercial Remix\nCommercial use: Yes\nDerivatives: Yes`;
+        const controlsIntro = `\n\nAI Learning on/off\nMint Fee $\nDefault: $${isHuman ? 10 : (st.mintingFee || 0)} (klik kolom input untuk edit)\nRev Share %\nDefault: ${(isHuman ? 10 : (st.commercialRevShare || 0))}% (klik kolom input untuk edit)`;
+        const msg = `${header}\n\n${humanLine}\n\n${core}${controlsIntro}`;
+
         try { chatAgent.updateLastMessage({ buttons: [] }); } catch {}
         const inlineButtons = [
           t("buttons.continue"),
@@ -619,10 +615,10 @@ License Type: ${result.licenseType}`;
           ts: Date.now(),
           buttons: inlineButtons,
           controls: {
-            aiLearning: !!selectedAiLearning && !lastAIResult.aiDetection.isAIGenerated,
-            mintingFee: (typeof selectedLicensePrice === 'number' ? selectedLicensePrice : st.mintingFee),
-            revShare: (typeof selectedRevShare === 'number' ? selectedRevShare : st.commercialRevShare),
-            aiLocked: !!lastAIResult.aiDetection.isAIGenerated,
+            aiLearning: isHuman,
+            mintingFee: isHuman ? 10 : (st.mintingFee || 0),
+            revShare: isHuman ? 10 : (st.commercialRevShare || 0),
+            aiLocked: !isHuman,
             editable: true,
           }
         });
