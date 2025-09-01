@@ -86,7 +86,7 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
       );
       const recommendedLicense: LicenseSettings = {
         pilType,
-        commercialUse: st.commercialUse,
+        commercialUse: (st.mintingFee || 0) > 0,
         derivativesAllowed: st.derivativesAllowed,
         derivativesAttribution: true,
         attribution: true,
@@ -100,6 +100,14 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
       setSelectedLicense(recommendedLicense);
     }
   }, [analysis, recommendation, useRecommendedLicense]);
+
+  // Sync commercialUse with licensePrice: 0 => false, >0 => true
+  useEffect(() => {
+    const shouldBeCommercial = (selectedLicense.licensePrice || 0) > 0;
+    if (selectedLicense.commercialUse !== shouldBeCommercial) {
+      setSelectedLicense(prev => ({ ...prev, commercialUse: shouldBeCommercial }));
+    }
+  }, [selectedLicense.licensePrice]);
 
   const handleFileRemove = () => {
     fileUpload.removeFile();
