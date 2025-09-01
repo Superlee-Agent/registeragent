@@ -602,8 +602,7 @@ License Type: ${result.licenseType}`;
 
         try { chatAgent.updateLastMessage({ buttons: [] }); } catch {}
         const inlineButtons = [
-          t("buttons.continue"),
-          ...(allowCustom ? [t("buttons.customLicense")] : [])
+          t("buttons.continue")
         ];
         chatAgent.addCompleteMessage({
           role: 'agent',
