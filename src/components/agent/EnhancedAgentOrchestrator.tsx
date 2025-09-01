@@ -641,13 +641,18 @@ License Type: ${result.licenseType}`;
       }
     } else if (buttonText === "Why?") {
       if (lastAIResult && lastAIRec) {
-        const aiStatus = lastAIResult.aiDetection.isAIGenerated ? `AI-Generated (${Math.round(lastAIResult.aiDetection.confidence * 100)}%)` : 'Human-Created';
+        const confPct = Math.round((lastAIResult.aiDetection.confidence || 0) * 100);
+        const displayAI = (lastAIResult.aiDetection.isAIGenerated && confPct >= 5);
+        const aiStatus = displayAI ? `AI-Generated (${confPct}%)` : 'Human-Created';
         const qualityScore = `${lastAIResult.qualityAssessment.overall}/10`;
-        const ipScore = `${lastAIResult.ipEligibility.score}/100`;
-        const riskLevel = lastAIResult.ipEligibility.score >= 80 ? 'Low' : lastAIResult.ipEligibility.score >= 60 ? 'Medium' : 'High';
-        const tolerance = lastAIResult.ipEligibility.isEligible ? 'Good to register' : 'Proceed with caution';
-        const licenseText = lastAIResult.aiDetection.isAIGenerated ? lastAIRec.license : 'Commercial Remix - Standard terms';
-        const details = `${t("details.title")}\n${t("details.ai")}: ${aiStatus}\n${t("details.quality")}: ${qualityScore}\n${t("details.ip")}: ${ipScore} - ${lastAIResult.ipEligibility.isEligible ? 'eligible' : 'not eligible'}\n${t("details.license")}: ${licenseText}\n${t("details.risk")}: ${riskLevel}\n${t("details.suggestion")}: ${tolerance}`;
+        const scoreNum = lastAIResult.ipEligibility.score || 0;
+        const ipScore = `${scoreNum}/100`;
+        const eligible = !!lastAIResult.ipEligibility.isEligible;
+        const riskLevel = scoreNum >= 80 ? 'Low' : scoreNum >= 60 ? 'Medium' : 'High';
+        const cleanContent = !lastAIResult.content.containsHumanFace && !lastAIResult.content.famousPersonDetected && !lastAIResult.content.famousBrandOrCharacterDetected;
+        const tolerance = eligible ? (scoreNum >= 60 ? 'Good to register' : 'Proceed with caution') : 'Not eligible';
+        const licenseText = cleanContent ? 'Commercial Remix - Standard terms' : (lastAIRec.license || 'Commercial Remix - Standard terms');
+        const details = `${t("details.title")}\n${t("details.ai")}: ${aiStatus}\n${t("details.quality")}: ${qualityScore}\n${t("details.ip")}: ${ipScore} - ${eligible ? 'eligible' : 'not eligible'}\n${t("details.license")}: ${licenseText}\n${t("details.risk")}: ${riskLevel}\n${t("details.suggestion")}: ${tolerance}`;
         chatAgent.addMessage("agent", details);
       } else {
         chatAgent.addMessage("agent", t("generic.noMoreDetails"));
