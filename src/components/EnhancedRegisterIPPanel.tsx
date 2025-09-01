@@ -108,6 +108,7 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
     setTitle("");
     setDescription("");
     setUseRecommendedLicense(false);
+    setIdentityVerified(false);
   };
 
   const handleRegister = () => {
