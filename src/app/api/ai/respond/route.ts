@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 
     const openai = new OpenAI({ apiKey });
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: `You are SuperLee, a concise helpful assistant for a DeFi/IP platform. Context: ${context || ''}. Intent: ${intent || 'general'}.` },
         { role: 'user', content: userMessage }
