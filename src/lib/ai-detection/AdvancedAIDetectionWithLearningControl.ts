@@ -725,8 +725,11 @@ Instructions:
   }
 
   public async analyzeImagePreset(imageUrl: string): Promise<{ analysis: AdvancedAnalysisResult; classification: { id: number; text: string } }> {
+    console.log('🎯 Starting preset classification...');
     const cls = await this.classifyWithPresetAnswers(imageUrl);
+    console.log('✅ Classification result:', { id: cls.id, textLength: cls.text.length });
     const analysis = this.buildAnalysisFromClassification(imageUrl, cls);
+    console.log('📊 Built analysis from classification');
     return { analysis, classification: cls };
   }
 
