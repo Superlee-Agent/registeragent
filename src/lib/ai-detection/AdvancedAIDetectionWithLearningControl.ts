@@ -475,7 +475,7 @@ If none, use [] and false. Respond ONLY JSON.` },
       };
     }
 
-    // Apply policy flags: brand/celebrity block and selfie requirement
+    // Apply policy flags: brand/celebrity/character block and selfie requirement
     if (enhanced.content.famousBrandOrCharacterDetected || enhanced.content.famousPersonDetected) {
       enhanced.ipEligibility.isEligible = false;
       enhanced.ipEligibility.reasons = Array.from(new Set([...(enhanced.ipEligibility.reasons||[]), enhanced.content.famousBrandOrCharacterDetected ? 'Contains famous brand/character' : 'Contains celebrity face']));
