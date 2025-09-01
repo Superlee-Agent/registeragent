@@ -401,8 +401,11 @@ export function EnhancedAgentOrchestrator() {
       const textToShow = dupFound ? `${ipText}${duplicateBlockText}` : ipText;
 
       // Update the loading message to show results with appropriate next step and image preview
+      const finalText = (aiResult && (aiResult.content.famousBrandOrCharacterDetected || aiResult.content.famousPersonDetected))
+        ? `${ipText}\n\n❌ Registration not allowed due to brand/celebrity detection. You can submit for manual review.`
+        : textToShow;
       chatAgent.updateLastMessage({
-        text: textToShow,
+        text: finalText,
         isLoading: false,
         buttons,
         image: { url: previewUrl, alt: currentFile.name }
