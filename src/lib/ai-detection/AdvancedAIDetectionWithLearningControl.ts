@@ -4,6 +4,7 @@ import { AdvancedAnalysisResult, SimpleRecommendation, AIMetadata } from '@/type
 import { getChatModel } from '@/lib/openai';
 import { ConsoleLogger, Logger } from '@/lib/ai-detection/logger';
 import { safeParseJson, unifiedSchema, entitiesSchema, captionSchema, supermanSchema, famousSchema } from '@/lib/ai-detection/schemas';
+import { AI_CONFIG } from '@/lib/ai-detection/config';
 
 export class AdvancedAIDetectionWithLearningControl {
   private openai: OpenAI;
