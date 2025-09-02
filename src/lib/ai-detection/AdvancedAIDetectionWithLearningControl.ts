@@ -761,7 +761,7 @@ Instructions:
     }
 
     const finalScore = Math.max(0, Math.min(100, score));
-    let isEligible = finalScore >= 50; // Lower threshold due to AI restrictions
+    let isEligible = finalScore >= AI_CONFIG.eligibility.MIN_SCORE;
 
     // Enforce blocking policy for celebrities/brands/characters regardless of score
     const blocked = !!(analysis.content?.famousBrandOrCharacterDetected || analysis.content?.famousPersonDetected);
