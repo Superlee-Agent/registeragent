@@ -112,7 +112,7 @@ Return ONLY valid JSON.`
               },
               {
                 type: "image_url",
-                image_url: { url: imageUrl }
+                image_url: { url: imageUrl, detail: 'low' }
               }
             ]
           }
@@ -251,7 +251,7 @@ Return ONLY valid JSON.`
       const resp = await this.openai.chat.completions.create({
         model: getChatModel(),
         messages: [
-          { role: "user", content: [ { type: "text", text: prompt }, { type: "image_url", image_url: { url: imageUrl } } ] }
+          { role: "user", content: [ { type: "text", text: prompt }, { type: "image_url", image_url: { url: imageUrl, detail: 'low' } } ] }
         ],
         max_tokens: 300,
         temperature: 0.1,
@@ -281,7 +281,7 @@ Return ONLY valid JSON.`
 Return STRICT JSON with keys: celebrities (string[]), brands (string[]), characters (string[]), logoPresent (boolean).
 Be conservative: if it resembles iconic characters (e.g., Superman blue suit + red cape + 'S' emblem; Batman cowl + bat emblem; Spider-Man red/blue web suit), include them in characters.
 If none, use [] and false. Respond ONLY JSON.` },
-              { type: "image_url", image_url: { url: imageUrl } }
+              { type: "image_url", image_url: { url: imageUrl, detail: 'low' } }
             ]
           }
         ],
@@ -310,7 +310,7 @@ If none, use [] and false. Respond ONLY JSON.` },
             role: "user",
             content: [
               { type: "text", text: `What is this image? Provide a short caption and list any named entities (people, brands/logos, or fictional characters) you recognize. Return STRICT JSON: {"caption": string, "entities": string[]}. Only JSON.` },
-              { type: "image_url", image_url: { url: imageUrl } }
+              { type: "image_url", image_url: { url: imageUrl, detail: 'low' } }
             ]
           }
         ],
@@ -334,7 +334,7 @@ If none, use [] and false. Respond ONLY JSON.` },
             role: "user",
             content: [
               { type: "text", text: `Does this image depict Superman or a Superman-like character? Consider cues: blue suit, red cape, large yellow 'S' chest emblem, DC Comics style. Respond STRICT JSON: {"superman": true|false}. Only JSON.` },
-              { type: "image_url", image_url: { url: imageUrl } }
+              { type: "image_url", image_url: { url: imageUrl, detail: 'low' } }
             ]
           }
         ],
@@ -357,7 +357,7 @@ If none, use [] and false. Respond ONLY JSON.` },
             role: "user",
             content: [
               { type: "text", text: `Does this image depict any well-known fictional characters or branded mascots (e.g., Superman, Batman, Spider-Man, Mickey Mouse), or recognizable brand logo elements? Return STRICT JSON: {"names": string[], "block": boolean}. Set block=true if yes. Only JSON.` },
-              { type: "image_url", image_url: { url: imageUrl } }
+              { type: "image_url", image_url: { url: imageUrl, detail: 'low' } }
             ]
           }
         ],
