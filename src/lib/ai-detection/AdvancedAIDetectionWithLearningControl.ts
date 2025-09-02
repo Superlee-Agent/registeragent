@@ -258,14 +258,10 @@ Return ONLY valid JSON.`
         temperature: 0.1,
         response_format: { type: "json_object" }
       });
-      const j = JSON.parse(resp.choices[0]?.message?.content || '{}');
-      return {
-        origin: String(j.origin || ''),
-        content: String(j.content || ''),
-        decision: String(j.decision || ''),
-        ai_training: String(j.ai_training || ''),
-      };
-    } catch {
+      const raw = resp.choices[0]?.message?.content || '{}';
+      return safeParseJson(raw, unifiedSchema, null as any);
+    } catch (e) {
+      this.logger?.warn('Unified prompt failed', e);
       return null;
     }
   }
