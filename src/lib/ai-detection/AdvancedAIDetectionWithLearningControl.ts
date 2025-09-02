@@ -117,7 +117,6 @@ Return ONLY valid JSON.`
             ]
           }
         ],
-        max_tokens: 2000,
         temperature: 0.1,
         response_format: { type: "json_object" }
       });
@@ -253,7 +252,7 @@ Return ONLY valid JSON.`
         messages: [
           { role: "user", content: [ { type: "text", text: prompt }, { type: "image_url", image_url: { url: imageUrl, detail: 'low' } } ] }
         ],
-        max_tokens: 300,
+
         temperature: 0.1,
         response_format: { type: "json_object" }
       });
@@ -599,7 +598,7 @@ Instructions:
 - Respond ONLY in strict JSON with keys exactly: {"answer_id": <1-12>, "answer_text": "<paste the exact text of the chosen Answer block>"}. No markdown, no extra keys, no prose.`;
 
     const resp = await this.openai.chat.completions.create({
-      model: "gpt-4o",
+      model: getChatModel(),
       messages: [
         { role: "user", content: [ { type: "text", text: prompt }, { type: "image_url", image_url: { url: imageUrl, detail: 'low' } } ] as any }
       ],
