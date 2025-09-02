@@ -128,45 +128,45 @@ Return ONLY valid JSON.`
 
       // Second pass: explicit entity detection (celebrities/brands/characters)
       try {
-        const ents = await this.detectEntities(imageUrl);
+        const entsP = this.detectEntities(imageUrl);
+        const capP = this.detectCaptionEntities(imageUrl);
+        const supP = this.checkSuperman(imageUrl);
+        const famP = this.checkFamousCharacter(imageUrl);
+        const [entsRes, capRes, supRes, famRes] = await Promise.allSettled([entsP, capP, supP, famP]);
+
+        const ents = entsRes.status === 'fulfilled' && entsRes.value ? entsRes.value : { celebrities: [], brands: [], characters: [], logoPresent: false };
         analysis.content = analysis.content || {};
         analysis.content.detectedCelebrities = Array.isArray(analysis.content.detectedCelebrities) ? analysis.content.detectedCelebrities : [];
         analysis.content.detectedBrands = Array.isArray(analysis.content.detectedBrands) ? analysis.content.detectedBrands : [];
         analysis.content.detectedCharacters = Array.isArray(analysis.content.detectedCharacters) ? analysis.content.detectedCharacters : [];
         analysis.content.logoPresent = Boolean(analysis.content.logoPresent);
-        if (Array.isArray(ents.celebrities)) analysis.content.detectedCelebrities = Array.from(new Set([...analysis.content.detectedCelebrities, ...ents.celebrities]));
-        if (Array.isArray(ents.brands)) analysis.content.detectedBrands = Array.from(new Set([...analysis.content.detectedBrands, ...ents.brands]));
-        if (Array.isArray(ents.characters)) analysis.content.detectedCharacters = Array.from(new Set([...analysis.content.detectedCharacters, ...ents.characters]));
+        analysis.content.detectedCelebrities = Array.from(new Set([...(analysis.content.detectedCelebrities), ...ents.celebrities]));
+        analysis.content.detectedBrands = Array.from(new Set([...(analysis.content.detectedBrands), ...ents.brands]));
+        analysis.content.detectedCharacters = Array.from(new Set([...(analysis.content.detectedCharacters), ...ents.characters]));
         if (typeof ents.logoPresent === 'boolean') analysis.content.logoPresent = analysis.content.logoPresent || ents.logoPresent;
-        if (!analysis.content.famousPersonDetected && analysis.content.detectedCelebrities?.length > 0) analysis.content.famousPersonDetected = true;
+        if (!analysis.content.famousPersonDetected && analysis.content.detectedCelebrities.length > 0) analysis.content.famousPersonDetected = true;
         if (!analysis.content.famousBrandOrCharacterDetected && ((analysis.content.detectedBrands?.length||0) > 0 || (analysis.content.detectedCharacters?.length||0) > 0 || analysis.content.logoPresent)) analysis.content.famousBrandOrCharacterDetected = true;
 
-        // Third pass: caption + entity from "what is this?" prompt
-        const cap = await this.detectCaptionEntities(imageUrl);
+        const cap = capRes.status === 'fulfilled' ? capRes.value : null;
         if (cap) {
           const capText = `${cap.caption || ''} ${(cap.entities || []).join(' ')}`.toLowerCase();
-          const celebHints = ['elon musk','taylor swift','cristiano ronaldo','lionel messi','barack obama','beyonce','rihanna','selena gomez','donald trump','bill gates','mark zuckerberg'];
-          const brandHints = ['nike','disney','mickey','mickey mouse','batman','superman','spiderman','spider-man','marvel','dc','apple','tesla','coca-cola','mcdonalds','mcdonald\'s','starbucks'];
-          if (!analysis.content.famousPersonDetected && celebHints.some(n => capText.includes(n))) analysis.content.famousPersonDetected = true;
-          if (!analysis.content.famousBrandOrCharacterDetected && brandHints.some(n => capText.includes(n))) analysis.content.famousBrandOrCharacterDetected = true;
-          // Merge entities into detected lists
+          if (!analysis.content.famousPersonDetected && AI_CONFIG.celebrities.some(n => capText.includes(n))) analysis.content.famousPersonDetected = true;
+          if (!analysis.content.famousBrandOrCharacterDetected && AI_CONFIG.brandsOrCharacters.some(n => capText.includes(n))) analysis.content.famousBrandOrCharacterDetected = true;
           const norm = (arr?: string[]) => (Array.isArray(arr) ? arr : []).map(s => String(s)).filter(Boolean);
-          analysis.content.detectedCelebrities = Array.from(new Set([...(analysis.content.detectedCelebrities||[]), ...norm(cap.entities).filter(e => celebHints.some(h => e.toLowerCase().includes(h)))]));
-          analysis.content.detectedCharacters = Array.from(new Set([...(analysis.content.detectedCharacters||[]), ...norm(cap.entities).filter(e => brandHints.some(h => e.toLowerCase().includes(h)))]));
+          analysis.content.detectedCelebrities = Array.from(new Set([...(analysis.content.detectedCelebrities||[]), ...norm(cap.entities).filter(e => AI_CONFIG.celebrities.some(h => e.toLowerCase().includes(h)))]));
+          analysis.content.detectedCharacters = Array.from(new Set([...(analysis.content.detectedCharacters||[]), ...norm(cap.entities).filter(e => AI_CONFIG.brandsOrCharacters.some(h => e.toLowerCase().includes(h)))]));
         }
 
-        // Targeted superhero check (Superman-like)
         if (!analysis.content.famousBrandOrCharacterDetected) {
-          const sup = await this.checkSuperman(imageUrl);
+          const sup = supRes.status === 'fulfilled' ? supRes.value : null;
           if (sup?.superman === true) {
             analysis.content.famousBrandOrCharacterDetected = true;
             analysis.content.detectedCharacters = Array.from(new Set([...(analysis.content.detectedCharacters||[]), 'Superman']));
           }
         }
 
-        // Generic famous character/brand detection
         if (!analysis.content.famousBrandOrCharacterDetected) {
-          const famous = await this.checkFamousCharacter(imageUrl);
+          const famous = famRes.status === 'fulfilled' ? famRes.value : null;
           if (famous) {
             const names = Array.isArray(famous.names) ? famous.names : [];
             const shouldBlock = Boolean(famous.block) || names.length > 0;
