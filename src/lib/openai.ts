@@ -77,7 +77,7 @@ For register commands, extract: title, description, license type if mentioned`
           content: message
         }
       ],
-      temperature: 0.3,
+      temperature: 0,
       response_format: { type: "json_object" }
     });
 
@@ -179,7 +179,7 @@ Provide a JSON response with:
           ]
         }
       ],
-      temperature: 0.5,
+      temperature: 0,
       response_format: { type: "json_object" }
     });
 
