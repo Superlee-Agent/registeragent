@@ -21,7 +21,7 @@ export async function POST(req: Request) {
         { role: 'system', content: `Analyze image for IP registration metadata. Return JSON: {description, suggestedTitle, detectedObjects[], style?, mood?}` },
         { role: 'user', content: [
           { type: 'text', text: 'Analyze this image and return structured JSON.' },
-          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
+          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: 'low' } }
         ] as any }
       ],
       temperature: 0.5,
