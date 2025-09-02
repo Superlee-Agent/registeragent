@@ -418,14 +418,13 @@ If none, use [] and false. Respond ONLY JSON.` },
 
     const conf = enhanced.aiDetection.confidence;
 
-    // Be conservative: if low confidence or no indicators, treat as human
-    if (enhanced.aiDetection.isAIGenerated && (conf < 0.65 || enhanced.aiDetection.indicators.length === 0)) {
-      enhanced.aiDetection.isAIGenerated = false;
-      enhanced.aiDetection.learningRestriction = 'enabled';
-      enhanced.licenseRecommendation.aiLearningAllowed = true;
-      enhanced.licenseRecommendation.suggestedTerms.aiTrainingRestricted = false;
-      enhanced.licenseRecommendation.robotTerms = { userAgent: '*', allow: 'Allow: / # Low confidence, treated as human' };
-      enhanced.content.tags = [...enhanced.content.tags, 'Low-Confidence-Override'];
+    // Low-confidence adjustment: keep AI flag, adjust confidence and note
+    if (enhanced.aiDetection.isAIGenerated && (conf < AI_CONFIG.confidenceThresholds.MEDIUM_CONFIDENCE || enhanced.aiDetection.indicators.length === 0)) {
+      enhanced.aiDetection.confidence = Math.max(conf, AI_CONFIG.confidenceThresholds.LOW_MIN_CONFIDENCE);
+      if (!enhanced.aiDetection.indicators.includes('Low confidence adjustment')) {
+        enhanced.aiDetection.indicators.push('Low confidence adjustment');
+      }
+      enhanced.content.tags = Array.from(new Set([...(enhanced.content.tags||[]), 'Low-Confidence-Adjustment']));
     }
 
     if (enhanced.aiDetection.isAIGenerated && conf >= 0.85) {
