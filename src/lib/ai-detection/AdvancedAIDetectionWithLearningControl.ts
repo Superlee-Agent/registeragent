@@ -461,15 +461,25 @@ If none, use [] and false. Respond ONLY JSON.` },
       };
 
     } else {
-      // Human-created content
-      enhanced.aiDetection.learningRestriction = 'enabled';
-      enhanced.licenseRecommendation.aiLearningAllowed = true;
-      enhanced.licenseRecommendation.suggestedTerms.aiTrainingRestricted = false;
-
-      enhanced.licenseRecommendation.robotTerms = {
-        userAgent: '*',
-        allow: 'Allow: / # Human-created content, AI training allowed'
-      };
+      if (enhanced.aiDetection.isAIGenerated) {
+        // Low confidence AI-generated: treat as conditional
+        enhanced.aiDetection.learningRestriction = 'conditional';
+        enhanced.licenseRecommendation.aiLearningAllowed = false;
+        enhanced.licenseRecommendation.suggestedTerms.aiTrainingRestricted = true;
+        enhanced.licenseRecommendation.robotTerms = {
+          userAgent: 'AI-Crawlers',
+          allow: 'Disallow: / # Conditional AI training restriction'
+        };
+      } else {
+        // Human-created content
+        enhanced.aiDetection.learningRestriction = 'enabled';
+        enhanced.licenseRecommendation.aiLearningAllowed = true;
+        enhanced.licenseRecommendation.suggestedTerms.aiTrainingRestricted = false;
+        enhanced.licenseRecommendation.robotTerms = {
+          userAgent: '*',
+          allow: 'Allow: / # Human-created content, AI training allowed'
+        };
+      }
     }
 
     // Apply policy flags: brand/celebrity/character block and selfie requirement
