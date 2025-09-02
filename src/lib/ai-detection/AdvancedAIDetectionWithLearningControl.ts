@@ -446,7 +446,7 @@ If none, use [] and false. Respond ONLY JSON.` },
         'Training-Restricted'
       ];
 
-      enhanced.ipEligibility.score = Math.max(0, (enhanced.ipEligibility.score || 0) - 20);
+      enhanced.ipEligibility.score = Math.max(0, (enhanced.ipEligibility.score || 0) - AI_CONFIG.eligibility.AI_SCORE_PENALTY_HIGH);
       enhanced.ipEligibility.risks.push('AI-generated content has limited IP protection');
       enhanced.ipEligibility.requirements.push('Verify human creative input and authorship');
 
