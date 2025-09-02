@@ -24,7 +24,7 @@ export async function POST(req: Request) {
           { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: 'low' } }
         ] as any }
       ],
-      temperature: 0.5,
+      temperature: 0,
       response_format: { type: 'json_object' },
     });
 
