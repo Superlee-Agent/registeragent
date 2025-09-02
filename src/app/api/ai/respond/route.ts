@@ -22,7 +22,6 @@ export async function POST(req: Request) {
         { role: 'user', content: userMessage }
       ],
       temperature: 0.7,
-      max_tokens: 200,
     });
 
     const content = completion.choices[0]?.message?.content || '';

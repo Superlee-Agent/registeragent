@@ -136,7 +136,6 @@ export async function POST(req: Request) {
         ],
         temperature: 0.1,
         top_p: 0,
-        max_tokens: 160,
         response_format: { type: 'json_object' }
       }, { timeout: 4000 });
       raw = completion.choices[0]?.message?.content ?? '{}';

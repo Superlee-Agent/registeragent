@@ -28,7 +28,6 @@ Be concise.`
       ],
       temperature: 0.2,
       response_format: { type: 'json_object' },
-      max_tokens: 200,
     });
 
     const content = completion.choices[0]?.message?.content || '{}';

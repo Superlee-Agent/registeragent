@@ -129,7 +129,6 @@ Respond naturally in a conversational way. If user needs clarification, ask spec
         }
       ],
       temperature: 0.7,
-      max_tokens: 200
     });
 
     return response.choices[0]?.message?.content || null;
@@ -180,7 +179,6 @@ Provide a JSON response with:
         }
       ],
       temperature: 0.5,
-      max_tokens: 500,
       response_format: { type: "json_object" }
     });
 

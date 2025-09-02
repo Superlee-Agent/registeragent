@@ -32,7 +32,6 @@ Return JSON only with keys: isAIGenerated, confidence, qualityScore, ipEligible,
             ]
           }
         ],
-        max_tokens: 300,
         temperature: 0.2,
         response_format: { type: "json_object" }
       });

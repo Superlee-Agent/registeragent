@@ -28,7 +28,6 @@ export async function GET() {
       const testResponse = await openai.chat.completions.create({
         model: getChatModel(),
         messages: [{ role: "user", content: "Hello, respond with 'OK'" }],
-        max_tokens: 10,
         temperature: 0
       });
 
