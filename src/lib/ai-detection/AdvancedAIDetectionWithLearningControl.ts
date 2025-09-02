@@ -285,7 +285,7 @@ If none, use [] and false. Respond ONLY JSON.` },
             ]
           }
         ],
-        max_tokens: 200,
+
         temperature: 0.1,
         response_format: { type: "json_object" }
       });
@@ -314,7 +314,7 @@ If none, use [] and false. Respond ONLY JSON.` },
             ]
           }
         ],
-        max_tokens: 200,
+
         temperature: 0.1,
         response_format: { type: "json_object" }
       });
@@ -338,7 +338,6 @@ If none, use [] and false. Respond ONLY JSON.` },
             ]
           }
         ],
-        max_tokens: 50,
         temperature: 0.0,
         response_format: { type: "json_object" }
       });
@@ -362,7 +361,6 @@ If none, use [] and false. Respond ONLY JSON.` },
             ]
           }
         ],
-        max_tokens: 120,
         temperature: 0.0,
         response_format: { type: "json_object" }
       });
