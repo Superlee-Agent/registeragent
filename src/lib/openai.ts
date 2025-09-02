@@ -172,7 +172,8 @@ Provide a JSON response with:
             {
               type: 'image_url',
               image_url: {
-                url: `data:image/jpeg;base64,${imageBase64}`
+                url: `data:image/jpeg;base64,${imageBase64}`,
+                detail: 'low'
               }
             }
           ]
