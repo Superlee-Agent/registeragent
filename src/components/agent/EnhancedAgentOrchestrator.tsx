@@ -90,10 +90,11 @@ export function EnhancedAgentOrchestrator() {
 
   const explorerBase = storyAeneid.blockExplorers?.default.url || "https://aeneid.storyscan.xyz";
 
-  // Load RAG index (from localStorage or env)
+  // Load RAG index (from localStorage or env) with autoload gating
   useEffect(() => {
+    const autoload = (process.env.NEXT_PUBLIC_RAG_AUTOLOAD ?? 'false') === 'true' || (typeof window !== 'undefined' && localStorage.getItem('ragAutoload') === 'true');
     const url = (typeof window !== 'undefined' && localStorage.getItem('ragIndexUrl')) || process.env.NEXT_PUBLIC_RAG_INDEX_URL;
-    if (url) {
+    if (autoload && url) {
       (async () => {
         try {
           const index = await loadIndexFromIpfs(url);
@@ -297,24 +298,27 @@ export function EnhancedAgentOrchestrator() {
 
       setLastDHash(wl.hash || null);
 
-      // Duplicate check (after safety analysis)
+      // Duplicate check (after safety analysis) gated by env
       let dupFound = false;
       let dupTokenId: string | undefined;
+      const dupEnabled = (process.env.NEXT_PUBLIC_DUPCHECK_ENABLED ?? 'true') === 'true';
       try {
-        const spg = process.env.NEXT_PUBLIC_SPG_COLLECTION as `0x${string}` | undefined;
-        if (spg && publicClient) {
-          const compressed = await compressImage(currentFile);
-          const imageHash = (await sha256HexOfFile(compressed)).toLowerCase();
-          const timeoutMs = Number.parseInt(process.env.NEXT_PUBLIC_REGISTRY_DUPCHECK_TIMEOUT_MS || '3000', 10);
-          const withTimeout = <T,>(p: Promise<T>) => new Promise<T>((resolve) => {
-            const t = setTimeout(() => resolve(null as any), timeoutMs);
-            p.then(v => { clearTimeout(t); resolve(v); }).catch(() => { clearTimeout(t); resolve(null as any); });
-          });
-          const quick = await withTimeout(checkDuplicateQuick(publicClient, spg, imageHash));
-          if (quick?.found) { dupFound = true; dupTokenId = quick.tokenId; }
-          if (!dupFound) {
-            const full = await withTimeout(checkDuplicateByImageHash(publicClient, spg, imageHash));
-            if (full?.found) { dupFound = true; dupTokenId = full.tokenId; }
+        if (dupEnabled) {
+          const spg = process.env.NEXT_PUBLIC_SPG_COLLECTION as `0x${string}` | undefined;
+          if (spg && publicClient) {
+            const compressed = await compressImage(currentFile);
+            const imageHash = (await sha256HexOfFile(compressed)).toLowerCase();
+            const timeoutMs = Number.parseInt(process.env.NEXT_PUBLIC_REGISTRY_DUPCHECK_TIMEOUT_MS || '3000', 10);
+            const withTimeout = <T,>(p: Promise<T>) => new Promise<T>((resolve) => {
+              const t = setTimeout(() => resolve(null as any), timeoutMs);
+              p.then(v => { clearTimeout(t); resolve(v); }).catch(() => { clearTimeout(t); resolve(null as any); });
+            });
+            const quick = await withTimeout(checkDuplicateQuick(publicClient, spg, imageHash));
+            if (quick?.found) { dupFound = true; dupTokenId = quick.tokenId; }
+            if (!dupFound) {
+              const full = await withTimeout(checkDuplicateByImageHash(publicClient, spg, imageHash));
+              if (full?.found) { dupFound = true; dupTokenId = full.tokenId; }
+            }
           }
         }
       } catch {}
@@ -357,23 +361,26 @@ export function EnhancedAgentOrchestrator() {
         toleranceGood = true;
       }
 
-      // Detect human face to offer camera capture option
+      // Detect human face to offer camera capture option (gated)
       let faceDetected = false;
+      const faceEnabled = (process.env.NEXT_PUBLIC_FACE_DETECT_ENABLED ?? 'true') === 'true';
       try {
-        // Prefer local FaceDetector API when available
-        // @ts-ignore
-        if (typeof window !== 'undefined' && window.FaceDetector) {
+        if (faceEnabled) {
+          // Prefer local FaceDetector API when available
           // @ts-ignore
-          const detector = new window.FaceDetector({ fastMode: true });
-          const bitmap = await createImageBitmap(currentFile);
-          const faces = await detector.detect(bitmap as any);
-          faceDetected = Array.isArray(faces) && faces.length > 0;
-        } else {
-          // Fallback: use positive hints only, avoid "no human face" false positives
-          const text = ipText.toLowerCase();
-          const positiveHint = /(contains an? (ordinary )?human face|human face \(not famous\)|selfie verification required|take selfie photo)/.test(text);
-          const negativeHint = /no human face/.test(text);
-          faceDetected = positiveHint && !negativeHint;
+          if (typeof window !== 'undefined' && window.FaceDetector) {
+            // @ts-ignore
+            const detector = new window.FaceDetector({ fastMode: true });
+            const bitmap = await createImageBitmap(currentFile);
+            const faces = await detector.detect(bitmap as any);
+            faceDetected = Array.isArray(faces) && faces.length > 0;
+          } else {
+            // Fallback: use positive hints only, avoid "no human face" false positives
+            const text = ipText.toLowerCase();
+            const positiveHint = /(contains an? (ordinary )?human face|human face \(not famous\)|selfie verification required|take selfie photo)/.test(text);
+            const negativeHint = /no human face/.test(text);
+            faceDetected = positiveHint && !negativeHint;
+          }
         }
       } catch {}
 
