@@ -4,6 +4,11 @@ import { NextResponse } from "next/server";
 import { AdvancedAIDetectionWithLearningControl } from "@/lib/ai-detection/AdvancedAIDetectionWithLearningControl";
 import { FallbackAIDetection } from "@/lib/ai-detection/FallbackAIDetection";
 import { AdvancedAnalysisResult } from "@/types/ai-detection";
+import { createHash } from "crypto";
+
+// Simple in-memory cache for analysis results
+const CACHE_TTL = Number.parseInt(process.env.ANALYZE_ADV_TTL_MS || '300000', 10);
+const advCache = new Map<string, { ts: number; payload: any }>();
 
 // Preset answer blocks (1-12) used for deterministic UI display
 const PRESET_ANSWERS: Record<number, string> = {
@@ -128,6 +133,13 @@ export async function POST(req: Request) {
     let detector: AdvancedAIDetectionWithLearningControl | null = null;
     let classification: { id: number; text: string } | null = null;
 
+    // Cache check (hash of input URL)
+    const cacheKey = createHash('sha1').update(String(finalImageUrl)).digest('hex');
+    const cached = advCache.get(cacheKey);
+    if (cached && (Date.now() - cached.ts) < CACHE_TTL) {
+      return NextResponse.json(cached.payload);
+    }
+
     try {
       // Prefer simplified preset classification flow for immediate decisioning
       detector = new AdvancedAIDetectionWithLearningControl();
@@ -138,26 +150,17 @@ export async function POST(req: Request) {
       // Attach classification marker
       analysis.content.tags = Array.from(new Set([...(analysis.content.tags || []), `Preset-Answer-${preset.classification.id}`]));
     } catch (advancedError) {
-      console.warn("Preset classification failed, trying legacy advanced analysis:", advancedError);
-
+      console.warn("Preset classification failed, using basic fallback:", advancedError);
       try {
-        // Legacy advanced analysis as fallback
-        detector = detector || new AdvancedAIDetectionWithLearningControl();
-        analysis = await detector.analyzeImage(finalImageUrl);
-        simpleRecommendation = detector.getSimpleRecommendationWithAIControl(analysis);
-      } catch (legacyError) {
-        console.warn("Advanced analysis failed, trying basic fallback:", legacyError);
-        try {
-          const fallbackDetector = new FallbackAIDetection();
-          const fallbackResult = await fallbackDetector.analyzeImageBasic(finalImageUrl);
-          analysis = fallbackResult.analysis;
-          simpleRecommendation = fallbackResult.recommendation;
-          analysis.content.tags.push("Fallback-Analysis");
-          simpleRecommendation.message += " (using fallback analysis)";
-        } catch (fallbackError) {
-          console.error("All analysis strategies failed:", fallbackError);
-          throw new Error(`Analysis failed: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`);
-        }
+        const fallbackDetector = new FallbackAIDetection();
+        const fallbackResult = await fallbackDetector.analyzeImageBasic(finalImageUrl);
+        analysis = fallbackResult.analysis;
+        simpleRecommendation = fallbackResult.recommendation;
+        analysis.content.tags.push("Fallback-Analysis");
+        simpleRecommendation.message += " (using fallback analysis)";
+      } catch (fallbackError) {
+        console.error("All analysis strategies failed:", fallbackError);
+        throw new Error(`Analysis failed: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`);
       }
     }
 
@@ -182,7 +185,7 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({
+    const payload = {
       success: true,
       analysis,
       recommendation: simpleRecommendation,
@@ -215,7 +218,10 @@ export async function POST(req: Request) {
       },
       timestamp: new Date().toISOString(),
       version: "3.0-AI-Control"
-    });
+    } as const;
+
+    advCache.set(cacheKey, { ts: Date.now(), payload });
+    return NextResponse.json(payload);
 
   } catch (error) {
     console.error("Advanced AI analysis error:", error);
