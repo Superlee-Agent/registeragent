@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 
 import OpenAI from 'openai';
+import { getChatModel } from '@/lib/openai';
 import crypto from 'node:crypto';
 
 // Note: OpenAI client will be created inside the handler if needed
