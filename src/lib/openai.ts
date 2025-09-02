@@ -55,7 +55,7 @@ export async function parseCommandWithAI(message: string): Promise<AICommandPars
       return null;
     }
     const response = await client.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: getChatModel(),
       messages: [
         {
           role: 'system',
@@ -106,7 +106,7 @@ export async function generateContextualResponse(
       return null;
     }
     const response = await client.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: getChatModel(),
       messages: [
         {
           role: 'system',
@@ -150,7 +150,7 @@ export async function analyzeImageForIP(imageBase64: string): Promise<AIImageDes
       return null;
     }
     const response = await client.chat.completions.create({
-      model: 'gpt-4o',
+      model: getChatModel(),
       messages: [
         {
           role: 'system',
