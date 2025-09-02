@@ -41,14 +41,19 @@ export function useAdvancedAIDetection(): UseAdvancedAIDetectionReturn {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      let data: any = null;
+      try {
+        data = await response.clone().json();
+      } catch {
+        try {
+          const text = await response.text();
+          data = JSON.parse(text);
+        } catch {
+          data = { success: false };
+        }
       }
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Analysis failed');
+      if (!response.ok || !data.success) {
+        throw new Error(data?.error || data?.details || `HTTP error! status: ${response.status}`);
       }
 
       setAnalysis(data.analysis);
@@ -82,14 +87,19 @@ export function useAdvancedAIDetection(): UseAdvancedAIDetectionReturn {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      let data: any = null;
+      try {
+        data = await response.clone().json();
+      } catch {
+        try {
+          const text = await response.text();
+          data = JSON.parse(text);
+        } catch {
+          data = { success: false };
+        }
       }
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Analysis failed');
+      if (!response.ok || !data.success) {
+        throw new Error(data?.error || data?.details || `HTTP error! status: ${response.status}`);
       }
 
       setAnalysis(data.analysis);
@@ -144,14 +154,19 @@ export function useBasicAIDetection() {
         body: JSON.stringify({ imageUrl }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      let data: any = null;
+      try {
+        data = await response.clone().json();
+      } catch {
+        try {
+          const text = await response.text();
+          data = JSON.parse(text);
+        } catch {
+          data = { success: false };
+        }
       }
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'AI detection failed');
+      if (!response.ok || !data.success) {
+        throw new Error(data?.error || data?.details || `HTTP error! status: ${response.status}`);
       }
 
       // Convert advanced result to basic format for compatibility
