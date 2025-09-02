@@ -449,7 +449,7 @@ If none, use [] and false. Respond ONLY JSON.` },
       enhanced.ipEligibility.risks.push('AI-generated content has limited IP protection');
       enhanced.ipEligibility.requirements.push('Verify human creative input and authorship');
 
-    } else if (enhanced.aiDetection.isAIGenerated && conf >= 0.65) {
+    } else if (enhanced.aiDetection.isAIGenerated && conf >= AI_CONFIG.confidenceThresholds.MEDIUM_CONFIDENCE) {
       // Medium confidence AI-generated
       enhanced.aiDetection.learningRestriction = 'conditional';
       enhanced.licenseRecommendation.aiLearningAllowed = false;
