@@ -427,7 +427,7 @@ If none, use [] and false. Respond ONLY JSON.` },
       enhanced.content.tags = Array.from(new Set([...(enhanced.content.tags||[]), 'Low-Confidence-Adjustment']));
     }
 
-    if (enhanced.aiDetection.isAIGenerated && conf >= 0.85) {
+    if (enhanced.aiDetection.isAIGenerated && conf >= AI_CONFIG.confidenceThresholds.HIGH_CONFIDENCE) {
       // High confidence AI-generated
       enhanced.licenseRecommendation.aiLearningAllowed = false;
       enhanced.licenseRecommendation.suggestedTerms.aiTrainingRestricted = true;
