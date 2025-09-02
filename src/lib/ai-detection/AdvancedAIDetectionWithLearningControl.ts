@@ -2,14 +2,17 @@ import OpenAI from 'openai';
 import { createHash } from 'crypto';
 import { AdvancedAnalysisResult, SimpleRecommendation, AIMetadata } from '@/types/ai-detection';
 import { getChatModel } from '@/lib/openai';
+import { ConsoleLogger, Logger } from '@/lib/ai-detection/logger';
+import { safeParseJson, unifiedSchema, entitiesSchema, captionSchema, supermanSchema, famousSchema } from '@/lib/ai-detection/schemas';
+import { AI_CONFIG } from '@/lib/ai-detection/config';
 
 export class AdvancedAIDetectionWithLearningControl {
   private openai: OpenAI;
-  
-  constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+  private logger: Logger;
+
+  constructor(client?: OpenAI, logger?: Logger) {
+    this.openai = client ?? new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    this.logger = logger ?? new ConsoleLogger('AdvancedAIDetection');
   }
 
   async analyzeImage(imageUrl: string): Promise<AdvancedAnalysisResult> {
@@ -125,45 +128,45 @@ Return ONLY valid JSON.`
 
       // Second pass: explicit entity detection (celebrities/brands/characters)
       try {
-        const ents = await this.detectEntities(imageUrl);
+        const entsP = this.detectEntities(imageUrl);
+        const capP = this.detectCaptionEntities(imageUrl);
+        const supP = this.checkSuperman(imageUrl);
+        const famP = this.checkFamousCharacter(imageUrl);
+        const [entsRes, capRes, supRes, famRes] = await Promise.allSettled([entsP, capP, supP, famP]);
+
+        const ents = entsRes.status === 'fulfilled' && entsRes.value ? entsRes.value : { celebrities: [], brands: [], characters: [], logoPresent: false };
         analysis.content = analysis.content || {};
         analysis.content.detectedCelebrities = Array.isArray(analysis.content.detectedCelebrities) ? analysis.content.detectedCelebrities : [];
         analysis.content.detectedBrands = Array.isArray(analysis.content.detectedBrands) ? analysis.content.detectedBrands : [];
         analysis.content.detectedCharacters = Array.isArray(analysis.content.detectedCharacters) ? analysis.content.detectedCharacters : [];
         analysis.content.logoPresent = Boolean(analysis.content.logoPresent);
-        if (Array.isArray(ents.celebrities)) analysis.content.detectedCelebrities = Array.from(new Set([...analysis.content.detectedCelebrities, ...ents.celebrities]));
-        if (Array.isArray(ents.brands)) analysis.content.detectedBrands = Array.from(new Set([...analysis.content.detectedBrands, ...ents.brands]));
-        if (Array.isArray(ents.characters)) analysis.content.detectedCharacters = Array.from(new Set([...analysis.content.detectedCharacters, ...ents.characters]));
+        analysis.content.detectedCelebrities = Array.from(new Set([...(analysis.content.detectedCelebrities), ...ents.celebrities]));
+        analysis.content.detectedBrands = Array.from(new Set([...(analysis.content.detectedBrands), ...ents.brands]));
+        analysis.content.detectedCharacters = Array.from(new Set([...(analysis.content.detectedCharacters), ...ents.characters]));
         if (typeof ents.logoPresent === 'boolean') analysis.content.logoPresent = analysis.content.logoPresent || ents.logoPresent;
-        if (!analysis.content.famousPersonDetected && analysis.content.detectedCelebrities?.length > 0) analysis.content.famousPersonDetected = true;
+        if (!analysis.content.famousPersonDetected && analysis.content.detectedCelebrities.length > 0) analysis.content.famousPersonDetected = true;
         if (!analysis.content.famousBrandOrCharacterDetected && ((analysis.content.detectedBrands?.length||0) > 0 || (analysis.content.detectedCharacters?.length||0) > 0 || analysis.content.logoPresent)) analysis.content.famousBrandOrCharacterDetected = true;
 
-        // Third pass: caption + entity from "what is this?" prompt
-        const cap = await this.detectCaptionEntities(imageUrl);
+        const cap = capRes.status === 'fulfilled' ? capRes.value : null;
         if (cap) {
           const capText = `${cap.caption || ''} ${(cap.entities || []).join(' ')}`.toLowerCase();
-          const celebHints = ['elon musk','taylor swift','cristiano ronaldo','lionel messi','barack obama','beyonce','rihanna','selena gomez','donald trump','bill gates','mark zuckerberg'];
-          const brandHints = ['nike','disney','mickey','mickey mouse','batman','superman','spiderman','spider-man','marvel','dc','apple','tesla','coca-cola','mcdonalds','mcdonald\'s','starbucks'];
-          if (!analysis.content.famousPersonDetected && celebHints.some(n => capText.includes(n))) analysis.content.famousPersonDetected = true;
-          if (!analysis.content.famousBrandOrCharacterDetected && brandHints.some(n => capText.includes(n))) analysis.content.famousBrandOrCharacterDetected = true;
-          // Merge entities into detected lists
+          if (!analysis.content.famousPersonDetected && AI_CONFIG.celebrities.some(n => capText.includes(n))) analysis.content.famousPersonDetected = true;
+          if (!analysis.content.famousBrandOrCharacterDetected && AI_CONFIG.brandsOrCharacters.some(n => capText.includes(n))) analysis.content.famousBrandOrCharacterDetected = true;
           const norm = (arr?: string[]) => (Array.isArray(arr) ? arr : []).map(s => String(s)).filter(Boolean);
-          analysis.content.detectedCelebrities = Array.from(new Set([...(analysis.content.detectedCelebrities||[]), ...norm(cap.entities).filter(e => celebHints.some(h => e.toLowerCase().includes(h)))]));
-          analysis.content.detectedCharacters = Array.from(new Set([...(analysis.content.detectedCharacters||[]), ...norm(cap.entities).filter(e => brandHints.some(h => e.toLowerCase().includes(h)))]));
+          analysis.content.detectedCelebrities = Array.from(new Set([...(analysis.content.detectedCelebrities||[]), ...norm(cap.entities).filter(e => AI_CONFIG.celebrities.some(h => e.toLowerCase().includes(h)))]));
+          analysis.content.detectedCharacters = Array.from(new Set([...(analysis.content.detectedCharacters||[]), ...norm(cap.entities).filter(e => AI_CONFIG.brandsOrCharacters.some(h => e.toLowerCase().includes(h)))]));
         }
 
-        // Targeted superhero check (Superman-like)
         if (!analysis.content.famousBrandOrCharacterDetected) {
-          const sup = await this.checkSuperman(imageUrl);
+          const sup = supRes.status === 'fulfilled' ? supRes.value : null;
           if (sup?.superman === true) {
             analysis.content.famousBrandOrCharacterDetected = true;
             analysis.content.detectedCharacters = Array.from(new Set([...(analysis.content.detectedCharacters||[]), 'Superman']));
           }
         }
 
-        // Generic famous character/brand detection
         if (!analysis.content.famousBrandOrCharacterDetected) {
-          const famous = await this.checkFamousCharacter(imageUrl);
+          const famous = famRes.status === 'fulfilled' ? famRes.value : null;
           if (famous) {
             const names = Array.isArray(famous.names) ? famous.names : [];
             const shouldBlock = Boolean(famous.block) || names.length > 0;
@@ -175,7 +178,7 @@ Return ONLY valid JSON.`
             }
           }
         }
-      } catch {}
+      } catch (e) { this.logger?.warn('Entity/caption/famous checks failed', e); }
 
       // Enhance analysis with business logic
       let enhancedAnalysis = this.enhanceAnalysisWithAIControls(analysis);
@@ -194,7 +197,7 @@ Return ONLY valid JSON.`
           enhancedAnalysis.aiDetection.isAIGenerated = isAI;
           // Normalize confidence to match unified origin to avoid contradictory UI
           const prevConf = Number(enhancedAnalysis.aiDetection.confidence || 0);
-          enhancedAnalysis.aiDetection.confidence = isAI ? Math.max(0.85, prevConf) : 0;
+          enhancedAnalysis.aiDetection.confidence = isAI ? Math.max(AI_CONFIG.confidenceThresholds.HIGH_CONFIDENCE, prevConf) : 0;
 
           enhancedAnalysis.licenseRecommendation.aiLearningAllowed = !isAI;
           enhancedAnalysis.licenseRecommendation.suggestedTerms.aiTrainingRestricted = isAI || ai_training === 'not allowed';
@@ -234,12 +237,12 @@ Return ONLY valid JSON.`
           enhancedAnalysis.licenseRecommendation.suggestedTerms.derivativesAllowed = true;
           enhancedAnalysis.licenseRecommendation.suggestedTerms.commercialUse = true;
         }
-      } catch {}
+      } catch (e) { this.logger?.warn('Unified validator mapping failed', e); }
 
-      console.log(`🔍 Advanced AI Analysis with Learning Control:`, enhancedAnalysis);
+      this.logger?.info('Advanced AI Analysis with Learning Control complete');
       return enhancedAnalysis;
     } catch (error) {
-      console.error("Error analyzing image:", error);
+      this.logger?.error('Error analyzing image', error);
       throw error;
     }
   }
@@ -256,14 +259,10 @@ Return ONLY valid JSON.`
         temperature: 0.1,
         response_format: { type: "json_object" }
       });
-      const j = JSON.parse(resp.choices[0]?.message?.content || '{}');
-      return {
-        origin: String(j.origin || ''),
-        content: String(j.content || ''),
-        decision: String(j.decision || ''),
-        ai_training: String(j.ai_training || ''),
-      };
-    } catch {
+      const raw = resp.choices[0]?.message?.content || '{}';
+      return safeParseJson(raw, unifiedSchema, null as any);
+    } catch (e) {
+      this.logger?.warn('Unified prompt failed', e);
       return null;
     }
   }
@@ -288,14 +287,10 @@ If none, use [] and false. Respond ONLY JSON.` },
         temperature: 0.1,
         response_format: { type: "json_object" }
       });
-      const j = JSON.parse(resp.choices[0]?.message?.content || '{}');
-      return {
-        celebrities: Array.isArray(j.celebrities) ? j.celebrities : [],
-        brands: Array.isArray(j.brands) ? j.brands : [],
-        characters: Array.isArray(j.characters) ? j.characters : [],
-        logoPresent: !!j.logoPresent,
-      };
-    } catch {
+      const raw = resp.choices[0]?.message?.content || '{}';
+      return safeParseJson(raw, entitiesSchema, { celebrities: [], brands: [], characters: [], logoPresent: false });
+    } catch (e) {
+      this.logger?.warn('Entity detection failed', e);
       return { celebrities: [], brands: [], characters: [], logoPresent: false };
     }
   }
@@ -317,9 +312,10 @@ If none, use [] and false. Respond ONLY JSON.` },
         temperature: 0.1,
         response_format: { type: "json_object" }
       });
-      const j = JSON.parse(resp.choices[0]?.message?.content || '{}');
-      return { caption: String(j.caption || ''), entities: Array.isArray(j.entities) ? j.entities.map(String) : [] };
-    } catch {
+      const raw = resp.choices[0]?.message?.content || '{}';
+      return safeParseJson(raw, captionSchema, null as any);
+    } catch (e) {
+      this.logger?.warn('Caption detection failed', e);
       return null;
     }
   }
@@ -340,9 +336,10 @@ If none, use [] and false. Respond ONLY JSON.` },
         temperature: 0.0,
         response_format: { type: "json_object" }
       });
-      const j = JSON.parse(resp.choices[0]?.message?.content || '{}');
-      return { superman: Boolean(j.superman) };
-    } catch {
+      const raw = resp.choices[0]?.message?.content || '{}';
+      return safeParseJson(raw, supermanSchema, null as any);
+    } catch (e) {
+      this.logger?.warn('Superman check failed', e);
       return null;
     }
   }
@@ -363,11 +360,10 @@ If none, use [] and false. Respond ONLY JSON.` },
         temperature: 0.0,
         response_format: { type: "json_object" }
       });
-      const j = JSON.parse(resp.choices[0]?.message?.content || '{}');
-      const names = Array.isArray(j.names) ? j.names.map((s: any) => String(s)).filter(Boolean) : [];
-      const block = Boolean(j.block);
-      return { names, block };
-    } catch {
+      const raw = resp.choices[0]?.message?.content || '{}';
+      return safeParseJson(raw, famousSchema, null as any);
+    } catch (e) {
+      this.logger?.warn('Famous character check failed', e);
       return null;
     }
   }
@@ -422,17 +418,16 @@ If none, use [] and false. Respond ONLY JSON.` },
 
     const conf = enhanced.aiDetection.confidence;
 
-    // Be conservative: if low confidence or no indicators, treat as human
-    if (enhanced.aiDetection.isAIGenerated && (conf < 0.65 || enhanced.aiDetection.indicators.length === 0)) {
-      enhanced.aiDetection.isAIGenerated = false;
-      enhanced.aiDetection.learningRestriction = 'enabled';
-      enhanced.licenseRecommendation.aiLearningAllowed = true;
-      enhanced.licenseRecommendation.suggestedTerms.aiTrainingRestricted = false;
-      enhanced.licenseRecommendation.robotTerms = { userAgent: '*', allow: 'Allow: / # Low confidence, treated as human' };
-      enhanced.content.tags = [...enhanced.content.tags, 'Low-Confidence-Override'];
+    // Low-confidence adjustment: keep AI flag, adjust confidence and note
+    if (enhanced.aiDetection.isAIGenerated && (conf < AI_CONFIG.confidenceThresholds.MEDIUM_CONFIDENCE || enhanced.aiDetection.indicators.length === 0)) {
+      enhanced.aiDetection.confidence = Math.max(conf, AI_CONFIG.confidenceThresholds.LOW_MIN_CONFIDENCE);
+      if (!enhanced.aiDetection.indicators.includes('Low confidence adjustment')) {
+        enhanced.aiDetection.indicators.push('Low confidence adjustment');
+      }
+      enhanced.content.tags = Array.from(new Set([...(enhanced.content.tags||[]), 'Low-Confidence-Adjustment']));
     }
 
-    if (enhanced.aiDetection.isAIGenerated && conf >= 0.85) {
+    if (enhanced.aiDetection.isAIGenerated && conf >= AI_CONFIG.confidenceThresholds.HIGH_CONFIDENCE) {
       // High confidence AI-generated
       enhanced.licenseRecommendation.aiLearningAllowed = false;
       enhanced.licenseRecommendation.suggestedTerms.aiTrainingRestricted = true;
@@ -450,11 +445,11 @@ If none, use [] and false. Respond ONLY JSON.` },
         'Training-Restricted'
       ];
 
-      enhanced.ipEligibility.score = Math.max(0, (enhanced.ipEligibility.score || 0) - 20);
+      enhanced.ipEligibility.score = Math.max(0, (enhanced.ipEligibility.score || 0) - AI_CONFIG.eligibility.AI_SCORE_PENALTY_HIGH);
       enhanced.ipEligibility.risks.push('AI-generated content has limited IP protection');
       enhanced.ipEligibility.requirements.push('Verify human creative input and authorship');
 
-    } else if (enhanced.aiDetection.isAIGenerated && conf >= 0.65) {
+    } else if (enhanced.aiDetection.isAIGenerated && conf >= AI_CONFIG.confidenceThresholds.MEDIUM_CONFIDENCE) {
       // Medium confidence AI-generated
       enhanced.aiDetection.learningRestriction = 'conditional';
       enhanced.licenseRecommendation.aiLearningAllowed = false;
@@ -466,15 +461,25 @@ If none, use [] and false. Respond ONLY JSON.` },
       };
 
     } else {
-      // Human-created content
-      enhanced.aiDetection.learningRestriction = 'enabled';
-      enhanced.licenseRecommendation.aiLearningAllowed = true;
-      enhanced.licenseRecommendation.suggestedTerms.aiTrainingRestricted = false;
-
-      enhanced.licenseRecommendation.robotTerms = {
-        userAgent: '*',
-        allow: 'Allow: / # Human-created content, AI training allowed'
-      };
+      if (enhanced.aiDetection.isAIGenerated) {
+        // Low confidence AI-generated: treat as conditional
+        enhanced.aiDetection.learningRestriction = 'conditional';
+        enhanced.licenseRecommendation.aiLearningAllowed = false;
+        enhanced.licenseRecommendation.suggestedTerms.aiTrainingRestricted = true;
+        enhanced.licenseRecommendation.robotTerms = {
+          userAgent: 'AI-Crawlers',
+          allow: 'Disallow: / # Conditional AI training restriction'
+        };
+      } else {
+        // Human-created content
+        enhanced.aiDetection.learningRestriction = 'enabled';
+        enhanced.licenseRecommendation.aiLearningAllowed = true;
+        enhanced.licenseRecommendation.suggestedTerms.aiTrainingRestricted = false;
+        enhanced.licenseRecommendation.robotTerms = {
+          userAgent: '*',
+          allow: 'Allow: / # Human-created content, AI training allowed'
+        };
+      }
     }
 
     // Apply policy flags: brand/celebrity/character block and selfie requirement
@@ -720,11 +725,11 @@ Instructions:
 
     // Quality factors (35% weight)
     const qualityScore = analysis.qualityAssessment?.overall || 0;
-    score += qualityScore * 3.5;
-    
+    score += qualityScore * AI_CONFIG.scoringWeights.QUALITY_WEIGHT;
+
     // Originality factors (25% weight)
     const originalityScore = analysis.qualityAssessment?.artistic?.originality || 0;
-    score += originalityScore * 2.5;
+    score += originalityScore * AI_CONFIG.scoringWeights.ORIGINALITY_WEIGHT;
 
     // AI generation impact (25% weight)
     if (analysis.aiDetection?.isAIGenerated) {
@@ -756,7 +761,7 @@ Instructions:
     }
 
     const finalScore = Math.max(0, Math.min(100, score));
-    let isEligible = finalScore >= 50; // Lower threshold due to AI restrictions
+    let isEligible = finalScore >= AI_CONFIG.eligibility.MIN_SCORE;
 
     // Enforce blocking policy for celebrities/brands/characters regardless of score
     const blocked = !!(analysis.content?.famousBrandOrCharacterDetected || analysis.content?.famousPersonDetected);
@@ -788,14 +793,14 @@ Instructions:
     let commercialRevShare = 5;
     let aiTrainingRestricted = false;
 
-    if (isAI && aiConfidence >= 0.85) {
+    if (isAI && aiConfidence >= AI_CONFIG.confidenceThresholds.HIGH_CONFIDENCE) {
       primary = 'remix';
       reasoning = 'AI-generated content with high confidence. Recommended Commercial Remix with AI training disabled to protect rights.';
       mintingFee = 0;
       commercialRevShare = 0;
       aiTrainingRestricted = true;
       
-    } else if (isAI && aiConfidence >= 0.65) {
+    } else if (isAI && aiConfidence >= AI_CONFIG.confidenceThresholds.MEDIUM_CONFIDENCE) {
       primary = 'remix';
       reasoning = 'Possible AI-generated content. Recommend Commercial Remix with AI training restrictions.';
       mintingFee = 5;
@@ -927,7 +932,7 @@ Instructions:
     const isAI = analysis.aiDetection.isAIGenerated;
     const aiConfidence = analysis.aiDetection.confidence;
     
-    if (isAI && aiConfidence >= 0.85) {
+    if (isAI && aiConfidence >= AI_CONFIG.confidenceThresholds.HIGH_CONFIDENCE) {
       return {
         status: 'ai-restricted',
         message: '🤖 AI-Generated content detected. AI training automatically disabled.',
@@ -935,7 +940,7 @@ Instructions:
         license: 'Commercial Remix - AI Training Blocked',
         aiLearning: '🚫 Disabled - Protects your AI-generated content'
       };
-    } else if (isAI && aiConfidence >= 0.65) {
+    } else if (isAI && aiConfidence >= AI_CONFIG.confidenceThresholds.MEDIUM_CONFIDENCE) {
       return {
         status: 'fair',
         message: '⚠️ Possible AI content. AI training restricted as precaution.',
@@ -970,3 +975,4 @@ Instructions:
     }
   }
 }
+
