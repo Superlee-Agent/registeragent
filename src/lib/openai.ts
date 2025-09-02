@@ -3,6 +3,12 @@ import OpenAI from 'openai';
 // Initialize OpenAI client
 let openaiClient: OpenAI | null = null;
 
+// Centralized model selection
+export function getChatModel(): string {
+  const envModel = process.env.OPENAI_MODEL || process.env.OPENAI_CHAT_MODEL || process.env.NEXT_PUBLIC_OPENAI_MODEL;
+  return (envModel && envModel.trim()) || 'gpt-5';
+}
+
 function getOpenAIClient(): OpenAI | null {
   // Only create server-side client
   if (typeof window !== 'undefined') return null;
