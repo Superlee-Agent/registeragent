@@ -311,9 +311,10 @@ If none, use [] and false. Respond ONLY JSON.` },
         temperature: 0.1,
         response_format: { type: "json_object" }
       });
-      const j = JSON.parse(resp.choices[0]?.message?.content || '{}');
-      return { caption: String(j.caption || ''), entities: Array.isArray(j.entities) ? j.entities.map(String) : [] };
-    } catch {
+      const raw = resp.choices[0]?.message?.content || '{}';
+      return safeParseJson(raw, captionSchema, null as any);
+    } catch (e) {
+      this.logger?.warn('Caption detection failed', e);
       return null;
     }
   }
