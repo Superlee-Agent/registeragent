@@ -793,7 +793,7 @@ Instructions:
     let commercialRevShare = 5;
     let aiTrainingRestricted = false;
 
-    if (isAI && aiConfidence >= 0.85) {
+    if (isAI && aiConfidence >= AI_CONFIG.confidenceThresholds.HIGH_CONFIDENCE) {
       primary = 'remix';
       reasoning = 'AI-generated content with high confidence. Recommended Commercial Remix with AI training disabled to protect rights.';
       mintingFee = 0;
@@ -932,7 +932,7 @@ Instructions:
     const isAI = analysis.aiDetection.isAIGenerated;
     const aiConfidence = analysis.aiDetection.confidence;
     
-    if (isAI && aiConfidence >= 0.85) {
+    if (isAI && aiConfidence >= AI_CONFIG.confidenceThresholds.HIGH_CONFIDENCE) {
       return {
         status: 'ai-restricted',
         message: '🤖 AI-Generated content detected. AI training automatically disabled.',
