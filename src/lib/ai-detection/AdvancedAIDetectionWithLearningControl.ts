@@ -7,11 +7,11 @@ import { safeParseJson, unifiedSchema, entitiesSchema, captionSchema, supermanSc
 
 export class AdvancedAIDetectionWithLearningControl {
   private openai: OpenAI;
-  
-  constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+  private logger: Logger;
+
+  constructor(client?: OpenAI, logger?: Logger) {
+    this.openai = client ?? new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    this.logger = logger ?? new ConsoleLogger('AdvancedAIDetection');
   }
 
   async analyzeImage(imageUrl: string): Promise<AdvancedAnalysisResult> {
