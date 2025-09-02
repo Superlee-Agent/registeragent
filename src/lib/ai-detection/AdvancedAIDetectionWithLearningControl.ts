@@ -177,7 +177,7 @@ Return ONLY valid JSON.`
             }
           }
         }
-      } catch {}
+      } catch (e) { this.logger?.warn('Entity/caption/famous checks failed', e); }
 
       // Enhance analysis with business logic
       let enhancedAnalysis = this.enhanceAnalysisWithAIControls(analysis);
