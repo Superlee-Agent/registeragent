@@ -725,11 +725,11 @@ Instructions:
 
     // Quality factors (35% weight)
     const qualityScore = analysis.qualityAssessment?.overall || 0;
-    score += qualityScore * 3.5;
-    
+    score += qualityScore * AI_CONFIG.scoringWeights.QUALITY_WEIGHT;
+
     // Originality factors (25% weight)
     const originalityScore = analysis.qualityAssessment?.artistic?.originality || 0;
-    score += originalityScore * 2.5;
+    score += originalityScore * AI_CONFIG.scoringWeights.ORIGINALITY_WEIGHT;
 
     // AI generation impact (25% weight)
     if (analysis.aiDetection?.isAIGenerated) {
