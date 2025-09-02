@@ -359,11 +359,10 @@ If none, use [] and false. Respond ONLY JSON.` },
         temperature: 0.0,
         response_format: { type: "json_object" }
       });
-      const j = JSON.parse(resp.choices[0]?.message?.content || '{}');
-      const names = Array.isArray(j.names) ? j.names.map((s: any) => String(s)).filter(Boolean) : [];
-      const block = Boolean(j.block);
-      return { names, block };
-    } catch {
+      const raw = resp.choices[0]?.message?.content || '{}';
+      return safeParseJson(raw, famousSchema, null as any);
+    } catch (e) {
+      this.logger?.warn('Famous character check failed', e);
       return null;
     }
   }
