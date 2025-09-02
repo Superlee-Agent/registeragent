@@ -800,7 +800,7 @@ Instructions:
       commercialRevShare = 0;
       aiTrainingRestricted = true;
       
-    } else if (isAI && aiConfidence >= 0.65) {
+    } else if (isAI && aiConfidence >= AI_CONFIG.confidenceThresholds.MEDIUM_CONFIDENCE) {
       primary = 'remix';
       reasoning = 'Possible AI-generated content. Recommend Commercial Remix with AI training restrictions.';
       mintingFee = 5;
@@ -940,7 +940,7 @@ Instructions:
         license: 'Commercial Remix - AI Training Blocked',
         aiLearning: '🚫 Disabled - Protects your AI-generated content'
       };
-    } else if (isAI && aiConfidence >= 0.65) {
+    } else if (isAI && aiConfidence >= AI_CONFIG.confidenceThresholds.MEDIUM_CONFIDENCE) {
       return {
         status: 'fair',
         message: '⚠️ Possible AI content. AI training restricted as precaution.',
