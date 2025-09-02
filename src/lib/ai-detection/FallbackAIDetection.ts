@@ -28,7 +28,7 @@ export class FallbackAIDetection {
 4. Recommended license type (commercial/nonCommercial/remix)
 Return JSON only with keys: isAIGenerated, confidence, qualityScore, ipEligible, recommendedLicense, reasoning.`
               },
-              { type: "image_url", image_url: { url: imageUrl } }
+              { type: "image_url", image_url: { url: imageUrl, detail: 'low' } }
             ]
           }
         ],
