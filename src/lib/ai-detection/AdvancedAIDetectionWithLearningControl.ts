@@ -286,14 +286,10 @@ If none, use [] and false. Respond ONLY JSON.` },
         temperature: 0.1,
         response_format: { type: "json_object" }
       });
-      const j = JSON.parse(resp.choices[0]?.message?.content || '{}');
-      return {
-        celebrities: Array.isArray(j.celebrities) ? j.celebrities : [],
-        brands: Array.isArray(j.brands) ? j.brands : [],
-        characters: Array.isArray(j.characters) ? j.characters : [],
-        logoPresent: !!j.logoPresent,
-      };
-    } catch {
+      const raw = resp.choices[0]?.message?.content || '{}';
+      return safeParseJson(raw, entitiesSchema, { celebrities: [], brands: [], characters: [], logoPresent: false });
+    } catch (e) {
+      this.logger?.warn('Entity detection failed', e);
       return { celebrities: [], brands: [], characters: [], logoPresent: false };
     }
   }
