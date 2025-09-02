@@ -189,10 +189,20 @@ export function EnhancedAgentOrchestrator() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ imageBase64: base64 }),
         }).then(async res => {
-          const data = await res.json();
-          if (!res.ok) {
+          let data: any = null;
+          try {
+            data = await res.clone().json();
+          } catch (e) {
+            try {
+              const text = await res.text();
+              data = JSON.parse(text);
+            } catch {
+              data = { raw: await res.text().catch(() => '') };
+            }
+          }
+          if (!res.ok || !data?.success) {
             console.error('AI Analysis API Error:', data);
-            throw new Error(data.error || 'API request failed');
+            throw new Error(data?.details || data?.error || `API request failed (${res.status})`);
           }
           return data;
         });
