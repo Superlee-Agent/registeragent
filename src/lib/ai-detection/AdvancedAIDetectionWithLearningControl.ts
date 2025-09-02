@@ -602,7 +602,6 @@ Instructions:
       messages: [
         { role: "user", content: [ { type: "text", text: prompt }, { type: "image_url", image_url: { url: imageUrl, detail: 'low' } } ] as any }
       ],
-      max_tokens: 300,
       temperature: 0,
       response_format: { type: "json_object" }
     }, { timeout: 10000 });
