@@ -236,7 +236,7 @@ Return ONLY valid JSON.`
           enhancedAnalysis.licenseRecommendation.suggestedTerms.derivativesAllowed = true;
           enhancedAnalysis.licenseRecommendation.suggestedTerms.commercialUse = true;
         }
-      } catch {}
+      } catch (e) { this.logger?.warn('Unified validator mapping failed', e); }
 
       console.log(`🔍 Advanced AI Analysis with Learning Control:`, enhancedAnalysis);
       return enhancedAnalysis;
