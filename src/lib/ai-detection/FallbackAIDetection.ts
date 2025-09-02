@@ -32,7 +32,7 @@ Return JSON only with keys: isAIGenerated, confidence, qualityScore, ipEligible,
             ]
           }
         ],
-        temperature: 0.2,
+        temperature: 0,
         response_format: { type: "json_object" }
       });
 
