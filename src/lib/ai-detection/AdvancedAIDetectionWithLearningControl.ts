@@ -2,6 +2,8 @@ import OpenAI from 'openai';
 import { createHash } from 'crypto';
 import { AdvancedAnalysisResult, SimpleRecommendation, AIMetadata } from '@/types/ai-detection';
 import { getChatModel } from '@/lib/openai';
+import { ConsoleLogger, Logger } from '@/lib/ai-detection/logger';
+import { safeParseJson, unifiedSchema, entitiesSchema, captionSchema, supermanSchema, famousSchema } from '@/lib/ai-detection/schemas';
 
 export class AdvancedAIDetectionWithLearningControl {
   private openai: OpenAI;
