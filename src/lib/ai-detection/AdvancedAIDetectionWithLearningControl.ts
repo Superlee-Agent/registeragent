@@ -2,9 +2,9 @@ import OpenAI from 'openai';
 import { createHash } from 'crypto';
 import { AdvancedAnalysisResult, SimpleRecommendation, AIMetadata } from '@/types/ai-detection';
 import { getChatModel } from '@/lib/openai';
-import { ConsoleLogger, Logger } from '@/lib/ai-detection/logger';
-import { safeParseJson, unifiedSchema, entitiesSchema, captionSchema, supermanSchema, famousSchema } from '@/lib/ai-detection/schemas';
-import { AI_CONFIG } from '@/lib/ai-detection/config';
+import { ConsoleLogger, Logger } from './logger';
+import { safeParseJson, unifiedSchema, entitiesSchema, captionSchema, supermanSchema, famousSchema } from './schemas';
+import { AI_CONFIG } from './config';
 
 export class AdvancedAIDetectionWithLearningControl {
   private openai: OpenAI;
