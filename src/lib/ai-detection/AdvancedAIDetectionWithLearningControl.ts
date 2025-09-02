@@ -335,9 +335,10 @@ If none, use [] and false. Respond ONLY JSON.` },
         temperature: 0.0,
         response_format: { type: "json_object" }
       });
-      const j = JSON.parse(resp.choices[0]?.message?.content || '{}');
-      return { superman: Boolean(j.superman) };
-    } catch {
+      const raw = resp.choices[0]?.message?.content || '{}';
+      return safeParseJson(raw, supermanSchema, null as any);
+    } catch (e) {
+      this.logger?.warn('Superman check failed', e);
       return null;
     }
   }
