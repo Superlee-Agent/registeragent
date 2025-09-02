@@ -125,7 +125,7 @@ export async function POST(req: Request) {
     } else {
       const openai = new OpenAI({ apiKey: openaiKey! });
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: getChatModel(),
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: [
