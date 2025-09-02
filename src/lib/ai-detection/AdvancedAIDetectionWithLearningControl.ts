@@ -238,10 +238,10 @@ Return ONLY valid JSON.`
         }
       } catch (e) { this.logger?.warn('Unified validator mapping failed', e); }
 
-      console.log(`🔍 Advanced AI Analysis with Learning Control:`, enhancedAnalysis);
+      this.logger?.info('Advanced AI Analysis with Learning Control complete');
       return enhancedAnalysis;
     } catch (error) {
-      console.error("Error analyzing image:", error);
+      this.logger?.error('Error analyzing image', error);
       throw error;
     }
   }
