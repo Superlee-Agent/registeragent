@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { NextResponse } from "next/server";
 import { AdvancedAIDetectionWithLearningControl } from "@/lib/ai-detection/AdvancedAIDetectionWithLearningControl";
 import { AdvancedAnalysisResult } from "@/types/ai-detection";
 
