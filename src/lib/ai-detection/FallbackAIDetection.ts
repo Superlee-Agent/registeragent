@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { AdvancedAnalysisResult, SimpleRecommendation } from '@/types/ai-detection';
+import { getChatModel } from '@/lib/openai';
 
 export class FallbackAIDetection {
   private openai: OpenAI;
@@ -13,7 +14,7 @@ export class FallbackAIDetection {
   async analyzeImageBasic(imageUrl: string): Promise<{ analysis: AdvancedAnalysisResult; recommendation: SimpleRecommendation }> {
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: getChatModel(),
         messages: [
           {
             role: "user",

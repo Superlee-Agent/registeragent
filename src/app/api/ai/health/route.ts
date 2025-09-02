@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getChatModel } from "@/lib/openai";
 
 export async function GET() {
   try {
@@ -25,7 +26,7 @@ export async function GET() {
     try {
       // Simple test call to check if API key works
       const testResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: getChatModel(),
         messages: [{ role: "user", content: "Hello, respond with 'OK'" }],
         max_tokens: 10,
         temperature: 0
@@ -50,7 +51,7 @@ export async function GET() {
           "AI Learning Controls"
         ],
         models: {
-          primary: "gpt-4o",
+          primary: getChatModel(),
           fallback: "gpt-3.5-turbo"
         }
       });

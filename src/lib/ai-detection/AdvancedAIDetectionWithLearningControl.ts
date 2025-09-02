@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { createHash } from 'crypto';
 import { AdvancedAnalysisResult, SimpleRecommendation, AIMetadata } from '@/types/ai-detection';
+import { getChatModel } from '@/lib/openai';
 
 export class AdvancedAIDetectionWithLearningControl {
   private openai: OpenAI;
@@ -14,7 +15,7 @@ export class AdvancedAIDetectionWithLearningControl {
   async analyzeImage(imageUrl: string): Promise<AdvancedAnalysisResult> {
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: getChatModel(),
         messages: [
           {
             role: "user",
@@ -248,7 +249,7 @@ Return ONLY valid JSON.`
     try {
       const prompt = `You are an IP registration validator. Analyze the attached image and answer in strict JSON format only. Do not explain. Follow the rules strictly:\n\n1. Detect if the image is AI-generated or human-made. Answer only "AI" or "Human".\n2. Detect if the image contains:\n   - a famous person’s face\n   - a brand logo or trademark\n   - a famous/popular fictional character (cartoon, anime, movie, etc.)\n   - a human face (not famous)\n   - no human face at all\n3. Decide if the image can be registered as IP:\n   - If AI-generated with no human face and no famous brand/character → "smart license (commercial remix)"\n   - If AI-generated with a non-famous human face → "smart license (commercial remix, selfie verification required)"\n   - If AI-generated with famous face/brand/character → "block"\n   - If Human-made with no human face and no famous brand/character → "smart license (commercial remix)"\n   - If Human-made with a non-famous human face → "smart license (commercial remix, selfie verification required)"\n   - If Human-made with famous face/brand/character → "block"\n4. AI training rules:\n   - All AI-generated images → "ai_training": "not allowed"\n   - Human-made images with no human face → "ai_training": "manual (user decides)"\n   - Human-made images with a non-famous human face → "ai_training": "manual (user decides)"\n\nReturn output ONLY in JSON like this:\n{\n  "origin": "AI/Human",\n  "content": "no_face / human_face_non_famous / human_face_famous / brand_or_character",\n  "decision": "smart license (commercial remix)" OR "smart license (commercial remix, selfie verification required)" OR "block",\n  "ai_training": "not allowed" OR "manual (user decides)"\n}`;
       const resp = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: getChatModel(),
         messages: [
           { role: "user", content: [ { type: "text", text: prompt }, { type: "image_url", image_url: { url: imageUrl } } ] }
         ],
@@ -271,7 +272,7 @@ Return ONLY valid JSON.`
   private async detectEntities(imageUrl: string): Promise<{ celebrities: string[]; brands: string[]; characters: string[]; logoPresent: boolean; }> {
     try {
       const resp = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: getChatModel(),
         messages: [
           {
             role: "user",
@@ -303,7 +304,7 @@ If none, use [] and false. Respond ONLY JSON.` },
   private async detectCaptionEntities(imageUrl: string): Promise<{ entities: string[]; caption: string } | null> {
     try {
       const resp = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: getChatModel(),
         messages: [
           {
             role: "user",
@@ -327,7 +328,7 @@ If none, use [] and false. Respond ONLY JSON.` },
   private async checkSuperman(imageUrl: string): Promise<{ superman: boolean } | null> {
     try {
       const resp = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: getChatModel(),
         messages: [
           {
             role: "user",
@@ -351,7 +352,7 @@ If none, use [] and false. Respond ONLY JSON.` },
   private async checkFamousCharacter(imageUrl: string): Promise<{ names: string[]; block: boolean } | null> {
     try {
       const resp = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: getChatModel(),
         messages: [
           {
             role: "user",
