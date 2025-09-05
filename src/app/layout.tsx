@@ -3,6 +3,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { ReactNode } from "react";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const metadata: Metadata = {
   title: "Superlee AI Agent - Advanced IP Registration",
   description: "Advanced IP registration assistant with AI detection and smart license recommendations on Story Protocol",
