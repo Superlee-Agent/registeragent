@@ -19,7 +19,6 @@ import { AIStatusIndicator } from "../AIStatusIndicator";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import SimpleLicenseWizard from "@/components/SimpleLicenseWizard";
 import ManualReviewModal from "@/components/agent/ManualReviewModal";
-import { loadIndexFromIpfs } from "@/lib/rag";
 import { detectIPStatus } from "@/services";
 import { isWhitelistedImage, computeDHash } from "@/lib/utils/whitelist";
 import { compressImage } from "@/lib/utils/image";
@@ -52,7 +51,6 @@ export function EnhancedAgentOrchestrator() {
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [showCamera, setShowCamera] = useState(false);
-  const [ragLoaded, setRagLoaded] = useState<string | null>(null);
   const [showManualReview, setShowManualReview] = useState(false);
   const [lastAIResult, setLastAIResult] = useState<AdvancedAnalysisResult | null>(null);
   const [lastAIRec, setLastAIRec] = useState<SimpleRecommendation | null>(null);
@@ -90,26 +88,14 @@ export function EnhancedAgentOrchestrator() {
 
   const explorerBase = storyAeneid.blockExplorers?.default.url || "https://aeneid.storyscan.xyz";
 
-  // Load RAG index (from localStorage or env) with autoload gating
+  // Preload face models in idle time
   useEffect(() => {
-    const autoload = (process.env.NEXT_PUBLIC_RAG_AUTOLOAD ?? 'false') === 'true' || (typeof window !== 'undefined' && localStorage.getItem('ragAutoload') === 'true');
-    const url = (typeof window !== 'undefined' && localStorage.getItem('ragIndexUrl')) || process.env.NEXT_PUBLIC_RAG_INDEX_URL;
-    if (autoload && url) {
-      (async () => {
-        try {
-          const index = await loadIndexFromIpfs(url);
-          (chatAgent as any).engine?.setRagIndex?.(index);
-          setRagLoaded(url as string);
-        } catch {}
-      })();
-    }
-    // Preload face models in idle time
     const idle = (cb: () => void) => {
       if (typeof (window as any).requestIdleCallback === 'function') (window as any).requestIdleCallback(cb, { timeout: 2000 });
       else setTimeout(cb, 500);
     };
     idle(() => { preloadFaceModels().catch(() => {}); });
-  }, [chatAgent]);
+  }, []);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
