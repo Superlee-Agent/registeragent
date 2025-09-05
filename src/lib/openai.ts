@@ -179,7 +179,7 @@ Provide a JSON response with:
           ]
         }
       ],
-      temperature: 0,
+      temperature: 1,
       response_format: { type: "json_object" }
     });
 
