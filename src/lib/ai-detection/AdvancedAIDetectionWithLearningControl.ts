@@ -120,7 +120,7 @@ Return ONLY valid JSON.`
             ]
           }
         ],
-        temperature: 0,
+        temperature: 1,
         response_format: { type: "json_object" }
       });
 
@@ -256,7 +256,7 @@ Return ONLY valid JSON.`
           { role: "user", content: [ { type: "text", text: prompt }, { type: "image_url", image_url: { url: imageUrl, detail: 'low' } } ] }
         ],
 
-        temperature: 0,
+        temperature: 1,
         response_format: { type: "json_object" }
       });
       const raw = resp.choices[0]?.message?.content || '{}';
@@ -284,7 +284,7 @@ If none, use [] and false. Respond ONLY JSON.` },
           }
         ],
 
-        temperature: 0,
+        temperature: 1,
         response_format: { type: "json_object" }
       });
       const raw = resp.choices[0]?.message?.content || '{}';
@@ -309,7 +309,7 @@ If none, use [] and false. Respond ONLY JSON.` },
           }
         ],
 
-        temperature: 0,
+        temperature: 1,
         response_format: { type: "json_object" }
       });
       const raw = resp.choices[0]?.message?.content || '{}';
@@ -333,7 +333,7 @@ If none, use [] and false. Respond ONLY JSON.` },
             ]
           }
         ],
-        temperature: 0.0,
+        temperature: 1,
         response_format: { type: "json_object" }
       });
       const raw = resp.choices[0]?.message?.content || '{}';
@@ -357,7 +357,7 @@ If none, use [] and false. Respond ONLY JSON.` },
             ]
           }
         ],
-        temperature: 0.0,
+        temperature: 1,
         response_format: { type: "json_object" }
       });
       const raw = resp.choices[0]?.message?.content || '{}';
@@ -607,7 +607,7 @@ Instructions:
       messages: [
         { role: "user", content: [ { type: "text", text: prompt }, { type: "image_url", image_url: { url: imageUrl, detail: 'low' } } ] as any }
       ],
-      temperature: 0,
+      temperature: 1,
       response_format: { type: "json_object" }
     }, { timeout: 10000 });
     const raw = resp.choices[0]?.message?.content || '{}';

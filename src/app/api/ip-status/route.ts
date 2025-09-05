@@ -134,7 +134,7 @@ export async function POST(req: Request) {
             { type: 'image_url', image_url: { url: dataUrl, detail: 'low' } }
           ] as any }
         ],
-        temperature: 0,
+        temperature: 1,
         top_p: 0,
         response_format: { type: 'json_object' }
       }, { timeout: 4000 });
