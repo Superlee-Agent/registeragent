@@ -22,12 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-gradient-to-br from-ai-bg via-ai-bg to-slate-900 text-white selection:bg-ai-primary/30">
-        <Providers>
-          <div className="min-h-screen flex flex-col">
-            <Topbar />
-            <main className="flex-1">{children}</main>
-          </div>
-        </Providers>
+        {children}
       </body>
     </html>
   );
