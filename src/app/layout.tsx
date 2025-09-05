@@ -17,15 +17,6 @@ export const metadata: Metadata = {
   other: { "color-scheme": "light dark" },
 };
 
-// Inline script untuk set class "dark" SEBELUM hydrate (anti kedip)
-const themeScript = `(function(){
-  try {
-    var theme = localStorage.getItem('theme');
-    if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      document.documentElement.classList.add('dark');
-    }
-  } catch {}
-})()`;
 
 export default function RootLayout({
   children,
@@ -34,9 +25,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-      </head>
       <body className="bg-gradient-to-br from-ai-bg via-ai-bg to-slate-900 text-white selection:bg-ai-primary/30">
         <Providers>
           <div className="min-h-screen flex flex-col">
