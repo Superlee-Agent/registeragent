@@ -4,7 +4,7 @@ import type { Metadata, Viewport } from "next";
 import { ReactNode } from "react";
 import dynamic from "next/dynamic";
 
-export const dynamic = 'force-dynamic';
+export const forceDynamic = 'force-dynamic';
 export const revalidate = 0;
 export const viewport: Viewport = {
   themeColor: [
