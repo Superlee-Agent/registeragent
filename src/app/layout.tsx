@@ -2,10 +2,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { ReactNode } from "react";
-import dynamic from "next/dynamic";
-
-const Providers = dynamic(() => import("./providers"), { ssr: false });
-const Topbar = dynamic(() => import("@/components/Topbar"), { ssr: false });
 
 export const metadata: Metadata = {
   title: "Superlee AI Agent - Advanced IP Registration",
