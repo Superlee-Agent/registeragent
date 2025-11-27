@@ -3,6 +3,12 @@ import OpenAI from 'openai';
 // Initialize OpenAI client
 let openaiClient: OpenAI | null = null;
 
+// Centralized model selection
+export function getChatModel(): string {
+  const envModel = process.env.OPENAI_MODEL || process.env.OPENAI_CHAT_MODEL || process.env.NEXT_PUBLIC_OPENAI_MODEL;
+  return (envModel && envModel.trim()) || 'gpt-5';
+}
+
 function getOpenAIClient(): OpenAI | null {
   // Only create server-side client
   if (typeof window !== 'undefined') return null;
@@ -49,7 +55,7 @@ export async function parseCommandWithAI(message: string): Promise<AICommandPars
       return null;
     }
     const response = await client.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: getChatModel(),
       messages: [
         {
           role: 'system',
@@ -71,7 +77,7 @@ For register commands, extract: title, description, license type if mentioned`
           content: message
         }
       ],
-      temperature: 0.3,
+      temperature: 0,
       response_format: { type: "json_object" }
     });
 
@@ -100,7 +106,7 @@ export async function generateContextualResponse(
       return null;
     }
     const response = await client.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: getChatModel(),
       messages: [
         {
           role: 'system',
@@ -123,7 +129,6 @@ Respond naturally in a conversational way. If user needs clarification, ask spec
         }
       ],
       temperature: 0.7,
-      max_tokens: 200
     });
 
     return response.choices[0]?.message?.content || null;
@@ -144,7 +149,7 @@ export async function analyzeImageForIP(imageBase64: string): Promise<AIImageDes
       return null;
     }
     const response = await client.chat.completions.create({
-      model: 'gpt-4-vision-preview',
+      model: getChatModel(),
       messages: [
         {
           role: 'system',
@@ -167,14 +172,14 @@ Provide a JSON response with:
             {
               type: 'image_url',
               image_url: {
-                url: `data:image/jpeg;base64,${imageBase64}`
+                url: `data:image/jpeg;base64,${imageBase64}`,
+                detail: 'low'
               }
             }
           ]
         }
       ],
-      temperature: 0.5,
-      max_tokens: 500,
+      temperature: 1,
       response_format: { type: "json_object" }
     });
 

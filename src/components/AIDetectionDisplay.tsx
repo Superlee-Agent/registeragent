@@ -161,7 +161,7 @@ export function AIDetectionDisplay({
                     advancedResult.aiDetection.learningRestriction === 'disabled' ? 'text-red-400' :
                     advancedResult.aiDetection.learningRestriction === 'conditional' ? 'text-yellow-400' : 'text-green-400'
                   }`}>
-                    {advancedResult.aiDetection.learningRestriction === 'disabled' ? '��� Disabled' :
+                    {advancedResult.aiDetection.learningRestriction === 'disabled' ? '🚫 Disabled' :
                      advancedResult.aiDetection.learningRestriction === 'conditional' ? '⚠️ Conditional' : '✅ Enabled'}
                   </span>
                 </div>

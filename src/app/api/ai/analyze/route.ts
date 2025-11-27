@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
+import { getChatModel } from "@/lib/openai";
 
 export async function POST(req: Request) {
   try {
@@ -15,17 +16,16 @@ export async function POST(req: Request) {
 
     const openai = new OpenAI({ apiKey });
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: getChatModel(),
       messages: [
         { role: 'system', content: `Analyze image for IP registration metadata. Return JSON: {description, suggestedTitle, detectedObjects[], style?, mood?}` },
         { role: 'user', content: [
           { type: 'text', text: 'Analyze this image and return structured JSON.' },
-          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
+          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: 'low' } }
         ] as any }
       ],
-      temperature: 0.5,
+      temperature: 1,
       response_format: { type: 'json_object' },
-      max_tokens: 400,
     });
 
     const content = completion.choices[0]?.message?.content || '{}';

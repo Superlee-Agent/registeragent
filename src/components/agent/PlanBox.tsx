@@ -9,14 +9,16 @@ interface PlanBoxProps {
   onConfirm: () => void;
   onCancel: () => void;
   registerState?: RegisterState;
-  onLicenseChange?: (data: { pilType: 'open_use' | 'commercial_remix'; revShare?: number; licensePrice?: number }) => void;
+  onLicenseChange?: (data: { pilType: 'open_use' | 'commercial_remix'; revShare?: number; licensePrice?: number; aiLearning?: boolean }) => void;
   selectedPilType?: 'open_use' | 'commercial_remix';
   selectedRevShare?: number;
   selectedLicensePrice?: number;
+  selectedAiLearning?: boolean;
+  aiContent?: boolean;
   hideLicenseControls?: boolean;
 }
 
-export function PlanBox({ plan, onConfirm, onCancel, registerState, onLicenseChange, selectedPilType, selectedRevShare, selectedLicensePrice, hideLicenseControls }: PlanBoxProps) {
+export function PlanBox({ plan, onConfirm, onCancel, registerState, onLicenseChange, selectedPilType, selectedRevShare, selectedLicensePrice, selectedAiLearning, aiContent, hideLicenseControls }: PlanBoxProps) {
   const { t } = useI18n();
   const isExecuting = (plan.type === "register" && registerState?.status !== 'idle' && registerState?.status !== 'error');
 
@@ -43,7 +45,7 @@ export function PlanBox({ plan, onConfirm, onCancel, registerState, onLicenseCha
       </div>
 
       {plan.type === 'register' && !hideLicenseControls && (
-        <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+        <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
           <label className="flex flex-col gap-1">
             {t('planBox.licenseType')}
             <select
@@ -79,6 +81,16 @@ export function PlanBox({ plan, onConfirm, onCancel, registerState, onLicenseCha
               disabled={(selectedPilType || 'open_use') !== 'commercial_remix'}
               onChange={(e) => onLicenseChange?.({ pilType: selectedPilType || 'open_use', licensePrice: Number(e.target.value) })}
             />
+          </label>
+          <label className="flex items-center gap-2 mt-6">
+            <input
+              type="checkbox"
+              className="accent-sky-400"
+              defaultChecked={!!selectedAiLearning}
+              disabled={!!aiContent}
+              onChange={(e) => onLicenseChange?.({ pilType: selectedPilType || 'open_use', aiLearning: e.target.checked })}
+            />
+            <span>{t('planBox.aiLearning')}</span>
           </label>
         </div>
       )}

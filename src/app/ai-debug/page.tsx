@@ -232,7 +232,7 @@ export default function AIDebugPage() {
             <div>
               <h3 className="font-medium text-white mb-2">❌ Model Access Failed</h3>
               <ul className="list-disc list-inside space-y-1 ml-4">
-                <li>gpt-4o-mini model requires OpenAI API access</li>
+                <li>gpt-4o model requires OpenAI API access</li>
                 <li>Check your OpenAI account tier and limits</li>
                 <li>Verify you have vision API access</li>
                 <li>Check rate limits and quotas</li>

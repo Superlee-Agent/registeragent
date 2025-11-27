@@ -109,9 +109,9 @@ export function useRegisterIPAgent() {
         attributes: [
           { trait_type: "ip_metadata_uri", value: ipMetadataURI },
           { trait_type: "License Type", value: usedLicenseSettings.pilType },
-          { trait_type: "Commercial Use", value: usedLicenseSettings.commercialUse ? "Yes" : "No" },
+          { trait_type: "Commercial Use", value: ((usedLicenseSettings.pilType === 'commercial_use' || usedLicenseSettings.pilType === 'commercial_remix') || ((usedLicenseSettings.licensePrice || 0) > 0)) ? "Yes" : "No" },
           { trait_type: "AI Learning Allowed", value: usedLicenseSettings.aiLearning ? "Yes" : "No" },
-          ...(usedLicenseSettings.commercialUse ? [{ trait_type: "Revenue Share", value: `${usedLicenseSettings.revShare}%` }] : []),
+          {...(((usedLicenseSettings.pilType === 'commercial_use' || usedLicenseSettings.pilType === 'commercial_remix') || ((usedLicenseSettings.licensePrice || 0) > 0)) ? [{ trait_type: "Revenue Share", value: `${usedLicenseSettings.revShare}%` }] : [])},
           { trait_type: "Territory", value: usedLicenseSettings.territory },
         ],
       };

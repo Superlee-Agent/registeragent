@@ -8,8 +8,12 @@ import { LicenseRecommendationCard } from "./LicenseRecommendationCard";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { useAdvancedAIDetection } from "@/hooks/useAdvancedAIDetection";
 import { useAccount } from "wagmi";
-import { DEFAULT_LICENSE_SETTINGS, type LicenseSettings, createLicenseTerms } from "@/lib/license/terms";
+import { DEFAULT_LICENSE_SETTINGS, type LicenseSettings } from "@/lib/license/terms";
 import { AdvancedAnalysisResult, SimpleRecommendation, AIMetadata } from "@/types/ai-detection";
+import { CameraCapture } from "./agent/CameraCapture";
+import { compressImage } from "@/lib/utils/image";
+import ManualReviewModal from "./agent/ManualReviewModal";
+import { getFaceEmbedding, cosineSimilarity, countFaces, preloadFaceModels } from "@/lib/utils/face";
 
 interface EnhancedRegisterIPPanelProps {
   onRegister?: (
@@ -37,13 +41,17 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
   const [showLicenseSelector, setShowLicenseSelector] = useState(false);
   const [useRecommendedLicense, setUseRecommendedLicense] = useState(false);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
+  const [identityVerified, setIdentityVerified] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [showManualReview, setShowManualReview] = useState(false);
 
   // Auto-analyze when file is uploaded
   useEffect(() => {
     if (fileUpload.file && fileUpload.previewUrl && !hasAnalyzed) {
       const analyzeFile = async () => {
         try {
-          // Convert file to base64
+          // Compress then convert to base64
+          const compressed = await compressImage(fileUpload.file, { maxDim: 1024, quality: 0.7, targetMaxBytes: 600 * 1024 });
           const reader = new FileReader();
           reader.onload = async (e) => {
             if (e.target?.result) {
@@ -52,7 +60,7 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
               setHasAnalyzed(true);
             }
           };
-          reader.readAsDataURL(fileUpload.file);
+          reader.readAsDataURL(compressed);
         } catch (err) {
           console.error('Auto-analysis failed:', err);
         }
@@ -72,21 +80,36 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
   // Auto-apply recommended license
   useEffect(() => {
     if (analysis && recommendation && useRecommendedLicense) {
+      const st = analysis.licenseRecommendation.suggestedTerms;
+      const pilType = (st.commercialUse && st.derivativesAllowed) ? 'commercial_remix' : (
+        analysis.licenseRecommendation.primary === 'commercial' ? 'commercial_use' : (
+          analysis.licenseRecommendation.primary === 'remix' ? 'non_commercial_remix' : 'open_use'
+        )
+      );
       const recommendedLicense: LicenseSettings = {
-        pilType: analysis.licenseRecommendation.primary === 'commercial' ? 'commercial_use' :
-                 analysis.licenseRecommendation.primary === 'remix' ? 'non_commercial_remix' : 'open_use',
-        commercialUse: analysis.licenseRecommendation.suggestedTerms.commercialUse,
-        derivativeWorks: analysis.licenseRecommendation.suggestedTerms.derivativesAllowed,
-        revShare: analysis.licenseRecommendation.suggestedTerms.commercialRevShare,
-        mintingFee: analysis.licenseRecommendation.suggestedTerms.mintingFee,
-        currency: 'USD',
-        aiLearning: !analysis.licenseRecommendation.suggestedTerms.aiTrainingRestricted,
-        territory: 'Global',
+        pilType,
+        commercialUse: (pilType === 'commercial_use' || pilType === 'commercial_remix') || ((st.mintingFee || 0) > 0),
+        derivativesAllowed: st.derivativesAllowed,
+        derivativesAttribution: true,
         attribution: true,
-      };
+        revShare: st.commercialRevShare,
+        licensePrice: st.mintingFee,
+        transferable: true,
+        aiLearning: !st.aiTrainingRestricted,
+        expiration: '0',
+        territory: 'Global',
+      } as LicenseSettings;
       setSelectedLicense(recommendedLicense);
     }
   }, [analysis, recommendation, useRecommendedLicense]);
+
+  // Sync commercialUse with licensePrice, but force ON for commercial_* types
+  useEffect(() => {
+    const shouldBeCommercial = (selectedLicense.pilType === 'commercial_use' || selectedLicense.pilType === 'commercial_remix') || ((selectedLicense.licensePrice || 0) > 0);
+    if (selectedLicense.commercialUse !== shouldBeCommercial) {
+      setSelectedLicense(prev => ({ ...prev, commercialUse: shouldBeCommercial }));
+    }
+  }, [selectedLicense.licensePrice, selectedLicense.pilType]);
 
   const handleFileRemove = () => {
     fileUpload.removeFile();
@@ -95,6 +118,7 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
     setTitle("");
     setDescription("");
     setUseRecommendedLicense(false);
+    setIdentityVerified(false);
   };
 
   const handleRegister = () => {
@@ -104,9 +128,30 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
         recommendation,
         metadata
       } : undefined;
-      
+
       onRegister(fileUpload.file, title, description, selectedLicense, aiResult);
     }
+  };
+
+  const requireSelfie = !!(analysis?.content.containsHumanFace && !analysis?.content.famousPersonDetected);
+  const blockedByPolicy = !!(analysis?.content.famousBrandOrCharacterDetected || analysis?.content.famousPersonDetected);
+
+  const verifyWithCapture = async (capture: File) => {
+    if (!fileUpload.file) return;
+    try {
+      await preloadFaceModels();
+      const faces = await countFaces(capture).catch(() => 0);
+      if (faces > 1) return;
+      const [refEmb, capEmb] = await Promise.all([
+        getFaceEmbedding(fileUpload.file),
+        getFaceEmbedding(capture)
+      ]);
+      if (refEmb && capEmb) {
+        const simTh = parseFloat(process.env.NEXT_PUBLIC_FACE_SIM_THRESHOLD || '0.82');
+        const sim = cosineSimilarity(refEmb, capEmb);
+        if (sim >= simTh) setIdentityVerified(true);
+      }
+    } catch {}
   };
 
   const handleAcceptRecommendation = () => {
@@ -119,7 +164,7 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
     setShowLicenseSelector(true);
   };
 
-  const canRegister = fileUpload.file && title.trim() && description.trim();
+  const canRegister = !!(fileUpload.file && title.trim() && description.trim() && !blockedByPolicy && (!requireSelfie || identityVerified));
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -207,6 +252,27 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
           recommendation={recommendation || undefined}
           className="mt-4"
         />
+      )}
+
+      {/* Policy banners */}
+      {analysis && (analysis.content.famousBrandOrCharacterDetected || analysis.content.famousPersonDetected) && (
+        <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+          <p className="text-red-300 text-sm font-medium">Registration blocked</p>
+          <p className="text-red-200/80 text-xs mt-1">Detected famous brand/character or celebrity face. Only manual review is allowed.</p>
+          <div className="mt-3">
+            <button onClick={() => setShowManualReview(true)} className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/20 text-white text-sm">Submit for Review</button>
+          </div>
+        </div>
+      )}
+
+      {analysis && requireSelfie && !identityVerified && !blockedByPolicy && (
+        <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+          <p className="text-yellow-300 text-sm font-medium">Selfie verification required</p>
+          <p className="text-yellow-200/80 text-xs mt-1">We detected a human face. Please verify with a selfie that matches the subject.</p>
+          <div className="mt-3 flex gap-2">
+            <button onClick={() => setShowCamera(true)} className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/20 text-white text-sm">Take Selfie</button>
+          </div>
+        </div>
       )}
 
       {/* Error Display */}
@@ -330,8 +396,8 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
             </div>
             {analysis && (
               <div className="text-xs text-white/60 mt-1 space-y-1">
-                <p>• AI Training: {selectedLicense.aiLearning ? '✅ Allowed' : '🚫 Restricted'}</p>
-                <p>• Minting Fee: ${selectedLicense.mintingFee}</p>
+                <p>• AI Training: {analysis.aiDetection.isAIGenerated ? '🚫 Restricted (fixed)' : (selectedLicense.aiLearning ? '✅ Allowed' : '🚫 Restricted')}</p>
+                <p>• Minting Fee: ${selectedLicense.licensePrice || 0}</p>
                 {selectedLicense.commercialUse && (
                   <p>• Revenue Share: {selectedLicense.revShare}%</p>
                 )}
@@ -350,15 +416,27 @@ export function EnhancedRegisterIPPanel({ onRegister, className = "" }: Enhanced
       )}
 
       {/* Register Button */}
-      {fileUpload.file && (
+      {fileUpload.file && !blockedByPolicy && (
         <button
           onClick={handleRegister}
           disabled={!canRegister}
           className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-ai-primary to-ai-accent text-white font-medium hover:from-ai-primary/80 hover:to-ai-accent/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
         >
-          {canRegister ? 'Register IP with AI Analysis' : 'Complete information to continue'}
+          {canRegister ? 'Register IP with AI Analysis' : (requireSelfie && !identityVerified ? 'Verify selfie to continue' : 'Complete information to continue')}
         </button>
       )}
+
+      {/* Modals */}
+      <CameraCapture
+        open={showCamera}
+        onClose={() => setShowCamera(false)}
+        onCapture={async (f) => { await verifyWithCapture(f); setShowCamera(false); }}
+        onFallback={() => setShowCamera(false)}
+      />
+      <ManualReviewModal
+        open={showManualReview}
+        onClose={() => setShowManualReview(false)}
+      />
 
       {/* Enhanced Summary */}
       {fileUpload.file && canRegister && (

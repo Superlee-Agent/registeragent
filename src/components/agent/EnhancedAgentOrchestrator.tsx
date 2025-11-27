@@ -19,7 +19,6 @@ import { AIStatusIndicator } from "../AIStatusIndicator";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import SimpleLicenseWizard from "@/components/SimpleLicenseWizard";
 import ManualReviewModal from "@/components/agent/ManualReviewModal";
-import { loadIndexFromIpfs } from "@/lib/rag";
 import { detectIPStatus } from "@/services";
 import { isWhitelistedImage, computeDHash } from "@/lib/utils/whitelist";
 import { compressImage } from "@/lib/utils/image";
@@ -48,14 +47,15 @@ export function EnhancedAgentOrchestrator() {
   const [selectedPilType, setSelectedPilType] = useState<'open_use' | 'commercial_remix'>('commercial_remix');
   const [selectedRevShare, setSelectedRevShare] = useState<number>(0);
   const [selectedLicensePrice, setSelectedLicensePrice] = useState<number>(0);
+  const [selectedAiLearning, setSelectedAiLearning] = useState<boolean>(true);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [showCamera, setShowCamera] = useState(false);
-  const [ragLoaded, setRagLoaded] = useState<string | null>(null);
   const [showManualReview, setShowManualReview] = useState(false);
   const [lastAIResult, setLastAIResult] = useState<AdvancedAnalysisResult | null>(null);
   const [lastAIRec, setLastAIRec] = useState<SimpleRecommendation | null>(null);
   const [smartApplied, setSmartApplied] = useState(false);
+  const [autoExecuted, setAutoExecuted] = useState(false);
   const { t } = useI18n();
 
   const handleNewChat = useCallback(() => {
@@ -88,25 +88,14 @@ export function EnhancedAgentOrchestrator() {
 
   const explorerBase = storyAeneid.blockExplorers?.default.url || "https://aeneid.storyscan.xyz";
 
-  // Load RAG index (from localStorage or env)
+  // Preload face models in idle time
   useEffect(() => {
-    const url = (typeof window !== 'undefined' && localStorage.getItem('ragIndexUrl')) || process.env.NEXT_PUBLIC_RAG_INDEX_URL;
-    if (url) {
-      (async () => {
-        try {
-          const index = await loadIndexFromIpfs(url);
-          (chatAgent as any).engine?.setRagIndex?.(index);
-          setRagLoaded(url as string);
-        } catch {}
-      })();
-    }
-    // Preload face models in idle time
     const idle = (cb: () => void) => {
       if (typeof (window as any).requestIdleCallback === 'function') (window as any).requestIdleCallback(cb, { timeout: 2000 });
       else setTimeout(cb, 500);
     };
     idle(() => { preloadFaceModels().catch(() => {}); });
-  }, [chatAgent]);
+  }, []);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -161,7 +150,8 @@ export function EnhancedAgentOrchestrator() {
     }, 100);
 
     try {
-      // Convert file to base64 for AI analysis
+      // Compress then convert to base64 for AI analysis (avoid oversized payloads)
+      const compressedForAI = await compressImage(currentFile, { maxDim: 1024, quality: 0.7, targetMaxBytes: 600 * 1024 });
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve) => {
         reader.onload = (e) => {
@@ -170,12 +160,13 @@ export function EnhancedAgentOrchestrator() {
             resolve(base64);
           }
         };
-        reader.readAsDataURL(currentFile);
+        reader.readAsDataURL(compressedForAI);
       });
 
       const base64 = await base64Promise;
 
       // Run advanced AI analysis and whitelist check in parallel
+      let presetAnswerText: string | null = null;
       const wlPromise = isWhitelistedImage(currentFile);
 
       let aiAnalysisPromise: Promise<any>;
@@ -185,10 +176,20 @@ export function EnhancedAgentOrchestrator() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ imageBase64: base64 }),
         }).then(async res => {
-          const data = await res.json();
-          if (!res.ok) {
+          let data: any = null;
+          try {
+            data = await res.clone().json();
+          } catch (e) {
+            try {
+              const text = await res.text();
+              data = JSON.parse(text);
+            } catch {
+              data = { raw: await res.text().catch(() => '') };
+            }
+          }
+          if (!res.ok || !data?.success) {
             console.error('AI Analysis API Error:', data);
-            throw new Error(data.error || 'API request failed');
+            throw new Error(data?.details || data?.error || `API request failed (${res.status})`);
           }
           return data;
         });
@@ -209,6 +210,17 @@ export function EnhancedAgentOrchestrator() {
       if (aiAnalysisResult.status === 'fulfilled' && aiAnalysisResult.value?.success) {
         aiResult = aiAnalysisResult.value.analysis;
         aiRecommendation = aiAnalysisResult.value.recommendation;
+        // Prefer displaying the single preset answer block from classification
+        const classification = aiAnalysisResult.value.classification;
+        console.log('🔍 Classification received:', classification);
+        if (classification?.text) {
+          presetAnswerText = String(classification.text);
+          console.log('✅ Using preset text:', presetAnswerText.slice(0, 100) + '...');
+        } else {
+          console.log('❌ No classification text found');
+        }
+        // Stash on analysis too
+        (aiResult as any)._classification = classification;
         setLastAIResult(aiResult);
         setLastAIRec(aiRecommendation);
       } else {
@@ -223,17 +235,17 @@ export function EnhancedAgentOrchestrator() {
       // Create simplified chat message
       let ipText = "";
 
-      if (aiResult && aiRecommendation) {
-        const isHighConfidenceAI = aiResult.aiDetection.isAIGenerated && aiResult.aiDetection.confidence >= 0.85;
-        const mainTitle = isHighConfidenceAI ? '🤖 AI Content' : '✨ Great Work';
-        const subtitle = isHighConfidenceAI ? 'This looks like it was made by AI' : 'Looks human-made';
-        const nextAction = aiResult.licenseRecommendation.primary === 'commercial'
-          ? 'Sell (Commercial License)'
-          : aiResult.licenseRecommendation.primary === 'remix'
-          ? 'Register Remix License'
-          : 'Share for Free';
-
-        ipText = `${mainTitle}\n${subtitle}\nNext: ${nextAction}`;
+      if (aiResult) {
+        const preset = (aiResult as any)._classification;
+        const effectivePreset = presetAnswerText || preset?.text;
+        if (effectivePreset) {
+          ipText = String(effectivePreset);
+        } else if (aiRecommendation) {
+          const isHighConfidenceAI = aiResult.aiDetection.isAIGenerated && aiResult.aiDetection.confidence >= 0.85;
+          const mainTitle = isHighConfidenceAI ? '🤖 AI Content' : '✨ Great Work';
+          const subtitle = isHighConfidenceAI ? 'This looks like it was made by AI' : 'Looks human-made';
+          ipText = `${mainTitle}\n${subtitle}`;
+        }
 
       } else {
         // Fallback to basic analysis with more detailed error info
@@ -260,7 +272,7 @@ export function EnhancedAgentOrchestrator() {
 
 🔧 Enhanced features when AI is working:
 • AI content detection
-• Quality & IP eligibility scoring
+��� Quality & IP eligibility scoring
 • Smart license recommendations
 • AI learning controls`;
       }
@@ -272,24 +284,27 @@ export function EnhancedAgentOrchestrator() {
 
       setLastDHash(wl.hash || null);
 
-      // Duplicate check (after safety analysis)
+      // Duplicate check (after safety analysis) gated by env
       let dupFound = false;
       let dupTokenId: string | undefined;
+      const dupEnabled = (process.env.NEXT_PUBLIC_DUPCHECK_ENABLED ?? 'true') === 'true';
       try {
-        const spg = process.env.NEXT_PUBLIC_SPG_COLLECTION as `0x${string}` | undefined;
-        if (spg && publicClient) {
-          const compressed = await compressImage(currentFile);
-          const imageHash = (await sha256HexOfFile(compressed)).toLowerCase();
-          const timeoutMs = Number.parseInt(process.env.NEXT_PUBLIC_REGISTRY_DUPCHECK_TIMEOUT_MS || '3000', 10);
-          const withTimeout = <T,>(p: Promise<T>) => new Promise<T>((resolve) => {
-            const t = setTimeout(() => resolve(null as any), timeoutMs);
-            p.then(v => { clearTimeout(t); resolve(v); }).catch(() => { clearTimeout(t); resolve(null as any); });
-          });
-          const quick = await withTimeout(checkDuplicateQuick(publicClient, spg, imageHash));
-          if (quick?.found) { dupFound = true; dupTokenId = quick.tokenId; }
-          if (!dupFound) {
-            const full = await withTimeout(checkDuplicateByImageHash(publicClient, spg, imageHash));
-            if (full?.found) { dupFound = true; dupTokenId = full.tokenId; }
+        if (dupEnabled) {
+          const spg = process.env.NEXT_PUBLIC_SPG_COLLECTION as `0x${string}` | undefined;
+          if (spg && publicClient) {
+            const compressed = await compressImage(currentFile);
+            const imageHash = (await sha256HexOfFile(compressed)).toLowerCase();
+            const timeoutMs = Number.parseInt(process.env.NEXT_PUBLIC_REGISTRY_DUPCHECK_TIMEOUT_MS || '3000', 10);
+            const withTimeout = <T,>(p: Promise<T>) => new Promise<T>((resolve) => {
+              const t = setTimeout(() => resolve(null as any), timeoutMs);
+              p.then(v => { clearTimeout(t); resolve(v); }).catch(() => { clearTimeout(t); resolve(null as any); });
+            });
+            const quick = await withTimeout(checkDuplicateQuick(publicClient, spg, imageHash));
+            if (quick?.found) { dupFound = true; dupTokenId = quick.tokenId; }
+            if (!dupFound) {
+              const full = await withTimeout(checkDuplicateByImageHash(publicClient, spg, imageHash));
+              if (full?.found) { dupFound = true; dupTokenId = full.tokenId; }
+            }
           }
         }
       } catch {}
@@ -303,19 +318,18 @@ export function EnhancedAgentOrchestrator() {
       let toleranceGood = true;
 
       if (aiResult) {
-        // Use AI analysis to determine risk
-        const isHighConfidenceAI = aiResult.aiDetection.isAIGenerated && aiResult.aiDetection.confidence >= 0.85;
-        const isHuman = !isHighConfidenceAI;
-        if (isHuman) {
-          // User request: if OpenAI doesn't recognize as AI, allow registration
-          riskLow = true;
-          toleranceGood = true;
-          isRisky = false;
-        } else {
-          riskLow = aiResult.ipEligibility.score >= 60;
-          toleranceGood = aiResult.ipEligibility.isEligible;
-          isRisky = !toleranceGood || isHighConfidenceAI;
-        }
+        // Risk is based on eligibility and policy blocks only
+        riskLow = aiResult.ipEligibility.score >= 60;
+        toleranceGood = aiResult.ipEligibility.isEligible;
+        const policyBlocked = !!(
+          aiResult.content.famousBrandOrCharacterDetected ||
+          aiResult.content.famousPersonDetected ||
+          (Array.isArray(aiResult.ipEligibility?.reasons) && aiResult.ipEligibility.reasons.some(r => {
+            const t = String(r).toLowerCase();
+            return t.includes('policy decision: block') || t.includes('block');
+          }))
+        );
+        isRisky = policyBlocked || !toleranceGood;
       } else {
         // Fallback to text parsing
         const riskLine = (ipText.split('\n').find(l => l.toLowerCase().startsWith('risk:')) || '').toLowerCase();
@@ -333,26 +347,39 @@ export function EnhancedAgentOrchestrator() {
         toleranceGood = true;
       }
 
-      // Detect human face to offer camera capture option
+      // Detect human face to offer camera capture option (gated)
       let faceDetected = false;
+      const faceEnabled = (process.env.NEXT_PUBLIC_FACE_DETECT_ENABLED ?? 'true') === 'true';
       try {
-        // Prefer local FaceDetector API when available
-        // @ts-ignore
-        if (typeof window !== 'undefined' && window.FaceDetector) {
+        if (faceEnabled) {
+          // Prefer local FaceDetector API when available
           // @ts-ignore
-          const detector = new window.FaceDetector({ fastMode: true });
-          const bitmap = await createImageBitmap(currentFile);
-          const faces = await detector.detect(bitmap as any);
-          faceDetected = Array.isArray(faces) && faces.length > 0;
-        } else {
-          // Fallback: keyword hints from OpenAI text
-          const ipAll = ipText.toLowerCase();
-          faceDetected = /face|faces|portrait|person|people|identity/.test(ipAll);
+          if (typeof window !== 'undefined' && window.FaceDetector) {
+            // @ts-ignore
+            const detector = new window.FaceDetector({ fastMode: true });
+            const bitmap = await createImageBitmap(currentFile);
+            const faces = await detector.detect(bitmap as any);
+            faceDetected = Array.isArray(faces) && faces.length > 0;
+          } else {
+            // Fallback: use positive hints only, avoid "no human face" false positives
+            const text = ipText.toLowerCase();
+            const positiveHint = /(contains an? (ordinary )?human face|human face \(not famous\)|selfie verification required|take selfie photo)/.test(text);
+            const negativeHint = /no human face/.test(text);
+            faceDetected = positiveHint && !negativeHint;
+          }
         }
       } catch {}
 
-      // Identity requirement when analysis mentions identity/face
-      const requiresIdentity = /identity|face|faces|portrait|person|people/.test(ipText.toLowerCase());
+      // Identity requirement using AI flags or text hints
+      let requiresIdentity = false;
+      if (aiResult && aiResult.content.containsHumanFace && !aiResult.content.famousPersonDetected) {
+        requiresIdentity = true;
+      } else if (!aiResult) {
+        const text = ipText.toLowerCase();
+        const positiveHint = /(contains an? (ordinary )?human face|human face \(not famous\)|selfie verification required|take selfie photo)/.test(text);
+        const negativeHint = /no human face/.test(text);
+        requiresIdentity = positiveHint && !negativeHint;
+      }
       if (requiresIdentity) {
         setReferenceFile(currentFile);
         setAwaitingIdentity(true);
@@ -361,22 +388,30 @@ export function EnhancedAgentOrchestrator() {
       // Compose buttons based on analysis
       let buttons: string[] = [];
 
+      const blockedByPolicy = !!(aiResult && (
+        aiResult.content.famousBrandOrCharacterDetected ||
+        aiResult.content.famousPersonDetected ||
+        (Array.isArray(aiResult.ipEligibility?.reasons) && aiResult.ipEligibility.reasons.some(r => {
+          const t = String(r).toLowerCase();
+          return t.includes('famous brand') || t.includes('celebrity') || t.includes('character') || t.includes('policy decision: block') || t.includes('block');
+        }))
+      ));
+
       if (dupFound) {
+        buttons = ["Upload File", "Submit for Review", "Copy dHash"];
+      } else if (blockedByPolicy) {
         buttons = ["Upload File", "Submit for Review", "Copy dHash"];
       } else if (isRisky) {
         buttons = ["Upload File", "Submit for Review", "Copy dHash"];
       } else {
-        // Safe to register - add AI-enhanced options
-        const minForCustom = Number.parseInt(process.env.NEXT_PUBLIC_CUSTOM_LICENSE_MIN || '80', 10);
-        const allowCustom = !!(aiResult && (aiResult.ipEligibility.score >= minForCustom));
-        buttons = ["Continue Registration", ...(allowCustom ? ["Custom License"] : []), "Copy dHash"];
-
-        // Add AI-specific button if AI analysis was successful
+        // Safe to register - show minimal actions in chat
         if (aiResult && aiRecommendation) {
-          buttons = ["🧠 Smart License", "Continue Registration", ...(allowCustom ? ["Custom License"] : []), "Copy dHash"];
+          buttons = ["🧠 Smart License", "Copy dHash"];
+        } else {
+          buttons = ["Copy dHash"];
         }
       }
-      if (faceDetected || requiresIdentity) {
+      if ((faceDetected || requiresIdentity) && !blockedByPolicy) {
         const cameraOnly = (process.env.NEXT_PUBLIC_CAMERA_ONLY_ON_FACE ?? 'false') === 'true';
         if (!buttons.includes("Take Photo")) buttons = ["Take Photo", ...buttons];
         if (cameraOnly) {
@@ -393,9 +428,12 @@ export function EnhancedAgentOrchestrator() {
       const duplicateBlockText = `\n\nDuplicate detected: this image is already registered as IP${dupTokenId ? ` (Token ID: ${dupTokenId})` : ''}. Registration is blocked.\nTolerance: Allowed to register as a remix`;
       const textToShow = dupFound ? `${ipText}${duplicateBlockText}` : ipText;
 
-      // Update the loading message to show results with appropriate next step and image preview
+      // Update the loading message: if we have preset classification, show only that single answer block
+      const presetShown = presetAnswerText || (aiResult as any)?._classification?.text;
+      console.log('🎯 Final display logic:', { presetAnswerText: !!presetAnswerText, presetShown: !!presetShown, textToShow: textToShow.slice(0, 50) + '...' });
+      const finalText = presetShown ? String(presetShown) : textToShow;
       chatAgent.updateLastMessage({
-        text: textToShow,
+        text: finalText,
         isLoading: false,
         buttons,
         image: { url: previewUrl, alt: currentFile.name }
@@ -473,8 +511,9 @@ export function EnhancedAgentOrchestrator() {
         pilType: plan.intent.pilType || DEFAULT_LICENSE_SETTINGS.pilType,
       };
 
-      const merged = { ...licenseSettings };
+      const merged = { ...licenseSettings } as LicenseSettings;
       if (selectedPilType) merged.pilType = selectedPilType as any;
+      merged.aiLearning = !!selectedAiLearning && !(lastAIResult?.aiDetection.isAIGenerated);
       if (selectedPilType === 'commercial_remix') {
         if (!isNaN(selectedRevShare)) merged.revShare = selectedRevShare;
         if (!isNaN(selectedLicensePrice)) merged.licensePrice = selectedLicensePrice;
@@ -519,7 +558,7 @@ License Type: ${result.licenseType}`;
                   url: `https://aeneid.explorer.story.foundation/ipa/${result.ipId}`
                 },
                 {
-                  text: `🔗 View Transaction: ${result.txHash}`,
+                  text: `���� View Transaction: ${result.txHash}`,
                   url: `${explorerBase}/tx/${result.txHash}`
                 }
               ]
@@ -551,6 +590,14 @@ License Type: ${result.licenseType}`;
     explorerBase
   ]);
 
+  // Auto execute plan when Smart License already applied (no PlanBox)
+  useEffect(() => {
+    if (smartApplied && chatAgent.currentPlan && chatAgent.currentPlan.type === 'register' && !autoExecuted) {
+      setAutoExecuted(true);
+      executePlan();
+    }
+  }, [smartApplied, chatAgent.currentPlan, autoExecuted, executePlan]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const router = useRouter();
@@ -565,38 +612,49 @@ License Type: ${result.licenseType}`;
     } else if (buttonText === "🧠 Smart License") {
       // Apply AI-recommended license settings from last analysis
       if (lastAIResult && lastAIRec) {
+        const confPct = Math.round((lastAIResult.aiDetection.confidence || 0) * 100);
+        const displayAI = lastAIResult.aiDetection.isAIGenerated && confPct >= 5;
+        const isHuman = !displayAI;
         const aiLicense = lastAIResult.licenseRecommendation.primary;
-        if (aiLicense === 'commercial') {
-          setSelectedPilType('commercial_remix');
-          setSelectedRevShare(lastAIResult.licenseRecommendation.suggestedTerms.commercialRevShare);
-          setSelectedLicensePrice(lastAIResult.licenseRecommendation.suggestedTerms.mintingFee);
-        } else if (aiLicense === 'remix') {
-          setSelectedPilType('commercial_remix');
-          setSelectedRevShare(lastAIResult.licenseRecommendation.suggestedTerms.commercialRevShare);
-          setSelectedLicensePrice(lastAIResult.licenseRecommendation.suggestedTerms.mintingFee);
+        // Force Commercial Remix path
+        setSelectedPilType('commercial_remix');
+        // Defaults per request
+        if (isHuman) {
+          setSelectedRevShare(10);
+          setSelectedLicensePrice(10);
         } else {
-          setSelectedPilType('open_use');
-          setSelectedRevShare(0);
-          setSelectedLicensePrice(0);
+          setSelectedRevShare(lastAIResult.licenseRecommendation.suggestedTerms.commercialRevShare || 0);
+          setSelectedLicensePrice(lastAIResult.licenseRecommendation.suggestedTerms.mintingFee || 0);
         }
+        setSelectedAiLearning(isHuman);
 
         const minForCustom = Number.parseInt(process.env.NEXT_PUBLIC_CUSTOM_LICENSE_MIN || '80', 10);
-        const allowCustom = lastAIResult.ipEligibility.score >= minForCustom;
-        const nextButtons = [t("buttons.continue"), ...(allowCustom ? [t("buttons.customLicense")] : [])];
+        const allowCustom = lastAIResult.ipEligibility.score >= minForCustom || isHuman;
         const st = lastAIResult.licenseRecommendation.suggestedTerms;
-        const body = t("smart.applied.body", {
-          message: lastAIRec.message,
-          license: lastAIRec.license,
-          aiLearning: lastAIRec.aiLearning,
-          mintingFee: st.mintingFee,
-          revShare: st.commercialRevShare,
-          commercialUse: st.commercialUse ? t("yes") : t("no"),
-          derivatives: st.derivativesAllowed ? t("yes") : t("no"),
-        });
-        const msg = `${t("smart.applied.title")}\n\n${body}`;
-        // remove buttons from previous message to avoid duplicate actions showing
+
+        // Build message text as requested
+        const header = 'Superlee recommendation applied 🎉';
+        const humanLine = isHuman ? '✅ Human content detected' : '🤖 AI content detected';
+        const core = `License: Commercial Remix\nCommercial use: Yes\nDerivatives: Yes`;
+        const msg = `${header}\n\n${humanLine}\n\n${core}`;
+
         try { chatAgent.updateLastMessage({ buttons: [] }); } catch {}
-        chatAgent.addMessage("agent", msg, nextButtons);
+        const inlineButtons = [
+          t("buttons.continue")
+        ];
+        chatAgent.addCompleteMessage({
+          role: 'agent',
+          text: msg,
+          ts: Date.now(),
+          buttons: inlineButtons,
+          controls: {
+            aiLearning: isHuman,
+            mintingFee: isHuman ? 10 : (st.mintingFee || 0),
+            revShare: isHuman ? 10 : (st.commercialRevShare || 0),
+            aiLocked: !isHuman,
+            editable: true,
+          }
+        });
         setToast(t("toasts.aiApplied"));
         setSmartApplied(true);
       } else {
@@ -604,18 +662,39 @@ License Type: ${result.licenseType}`;
       }
     } else if (buttonText === "Why?") {
       if (lastAIResult && lastAIRec) {
-        const aiStatus = lastAIResult.aiDetection.isAIGenerated ? `AI-Generated (${Math.round(lastAIResult.aiDetection.confidence * 100)}%)` : 'Human-Created';
+        const confPct = Math.round((lastAIResult.aiDetection.confidence || 0) * 100);
+        const aiStatus = lastAIResult.aiDetection.isAIGenerated ? `AI-Generated (${confPct}%)` : 'Human-Created';
         const qualityScore = `${lastAIResult.qualityAssessment.overall}/10`;
-        const ipScore = `${lastAIResult.ipEligibility.score}/100`;
-        const riskLevel = lastAIResult.ipEligibility.score >= 80 ? 'Low' : lastAIResult.ipEligibility.score >= 60 ? 'Medium' : 'High';
-        const tolerance = lastAIResult.ipEligibility.isEligible ? 'Good to register' : 'Proceed with caution';
-        const details = `${t("details.title")}\n${t("details.ai")}: ${aiStatus}\n${t("details.quality")}: ${qualityScore}\n${t("details.ip")}: ${ipScore} - ${lastAIResult.ipEligibility.isEligible ? 'eligible' : 'not eligible'}\n${t("details.license")}: ${lastAIRec.license}\n${t("details.risk")}: ${riskLevel}\n${t("details.suggestion")}: ${tolerance}`;
+        const scoreNum = lastAIResult.ipEligibility.score || 0;
+        const ipScore = `${scoreNum}/100`;
+        const eligible = !!lastAIResult.ipEligibility.isEligible;
+        const riskLevel = scoreNum >= 80 ? 'Low' : scoreNum >= 60 ? 'Medium' : 'High';
+        const cleanContent = !lastAIResult.content.containsHumanFace && !lastAIResult.content.famousPersonDetected && !lastAIResult.content.famousBrandOrCharacterDetected;
+        const tolerance = eligible ? (scoreNum >= 60 ? 'Good to register' : 'Proceed with caution') : 'Not eligible';
+        const licenseText = cleanContent ? 'Commercial Remix - Standard terms' : (lastAIRec.license || 'Commercial Remix - Standard terms');
+        const details = `${t("details.title")}\n${t("details.ai")}: ${aiStatus}\n${t("details.quality")}: ${qualityScore}\n${t("details.ip")}: ${ipScore} - ${eligible ? 'eligible' : 'not eligible'}\n${t("details.license")}: ${licenseText}\n${t("details.risk")}: ${riskLevel}\n${t("details.suggestion")}: ${tolerance}`;
         chatAgent.addMessage("agent", details);
       } else {
         chatAgent.addMessage("agent", t("generic.noMoreDetails"));
       }
     } else if (buttonText === t("buttons.continue") || buttonText === "Continue Registration") {
       chatAgent.processPrompt(buttonText, (referenceFile || analyzedFile) || undefined);
+    } else if (buttonText === 'AI Learning On') {
+      setSelectedAiLearning(true);
+      chatAgent.addMessage('agent', 'AI Learning set to ON', [t("buttons.continue"), 'Edit Mint Fee', 'Edit Rev Share', 'AI Learning Off']);
+    } else if (buttonText === 'AI Learning Off') {
+      setSelectedAiLearning(false);
+      chatAgent.addMessage('agent', 'AI Learning set to OFF', [t("buttons.continue"), 'Edit Mint Fee', 'Edit Rev Share', 'AI Learning On']);
+    } else if (buttonText === 'Edit Mint Fee') {
+      const v = Number(prompt('Enter minting fee in $', String(selectedLicensePrice || 0)));
+      if (!isNaN(v) && v >= 0) setSelectedLicensePrice(v);
+      const fee = (!isNaN(v) && v >= 0) ? v : (selectedLicensePrice || 0);
+      chatAgent.addMessage('agent', `Minting fee set to $${fee}`, [t("buttons.continue"), 'AI Learning On', 'AI Learning Off', 'Edit Rev Share']);
+    } else if (buttonText === 'Edit Rev Share') {
+      const v = Number(prompt('Enter revenue share (%)', String(selectedRevShare || 10)));
+      if (!isNaN(v) && v >= 0 && v <= 100) setSelectedRevShare(v);
+      const rs = (!isNaN(v) && v >= 0 && v <= 100) ? v : (selectedRevShare || 10);
+      chatAgent.addMessage('agent', `Revenue share set to ${rs}%`, [t("buttons.continue"), 'AI Learning On', 'AI Learning Off', 'Edit Mint Fee']);
     } else if (buttonText === t("buttons.customLicense") || buttonText === "Custom License" || buttonText === "🎯 Smart License") {
       setSmartApplied(false);
       setShowCustomLicense(true);
@@ -658,7 +737,7 @@ License Type: ${result.licenseType}`;
       try {
         const faces = await countFaces(capture);
         if (faces > 1) {
-          setToast('Multiple faces detected ❌');
+          setToast('⚠️ Multiple faces detected');
           chatAgent.addMessage('agent', 'Multiple faces detected in the photo. Please retake with only one face clearly visible.', ['Take Photo', 'Submit for Review']);
           return;
         }
@@ -788,12 +867,34 @@ License Type: ${result.licenseType}`;
                 <MessageList
                   messages={chatAgent.messages}
                   onButtonClick={handleButtonClick}
+                  onControlChange={(changes) => {
+                    // Update local state
+                    if (typeof changes.aiLearning === 'boolean' && !(lastAIResult?.aiDetection.isAIGenerated)) {
+                      setSelectedAiLearning(changes.aiLearning);
+                    }
+                    if (typeof changes.mintingFee === 'number' && changes.mintingFee >= 0) {
+                      setSelectedLicensePrice(changes.mintingFee);
+                    }
+                    if (typeof changes.revShare === 'number' && changes.revShare >= 0 && changes.revShare <= 100) {
+                      setSelectedRevShare(changes.revShare);
+                    }
+                    // Reflect in last chat message controls
+                    chatAgent.updateLastMessage({
+                      controls: {
+                        aiLearning: (typeof changes.aiLearning === 'boolean') ? changes.aiLearning : (!!selectedAiLearning && !(lastAIResult?.aiDetection.isAIGenerated)),
+                        mintingFee: (typeof changes.mintingFee === 'number') ? changes.mintingFee : (selectedLicensePrice || 0),
+                        revShare: (typeof changes.revShare === 'number') ? changes.revShare : (selectedRevShare || 0),
+                        aiLocked: !!lastAIResult?.aiDetection.isAIGenerated,
+                        editable: true,
+                      }
+                    });
+                  }}
                   isTyping={chatAgent.isTyping}
                 />
 
 
                 {/* Plan Box */}
-                {chatAgent.currentPlan && (() => {
+                {chatAgent.currentPlan && !smartApplied && (() => {
                   const base = chatAgent.currentPlan;
                   const steps = [...base.steps];
                   const idx = steps.findIndex(s => /^License:/i.test(s) || /^Lisensi:/i.test(s));
@@ -812,11 +913,14 @@ License Type: ${result.licenseType}`;
                       selectedPilType={selectedPilType}
                       selectedRevShare={selectedRevShare}
                       selectedLicensePrice={selectedLicensePrice}
-                      hideLicenseControls={smartApplied || !!customTerms}
-                      onLicenseChange={({ pilType, revShare, licensePrice }) => {
+                      selectedAiLearning={selectedAiLearning}
+                      aiContent={!!lastAIResult?.aiDetection.isAIGenerated}
+                      hideLicenseControls={(!!customTerms) || (smartApplied && !!lastAIResult?.aiDetection.isAIGenerated)}
+                      onLicenseChange={({ pilType, revShare, licensePrice, aiLearning }) => {
                         if (pilType) setSelectedPilType(pilType);
                         if (typeof revShare === 'number') setSelectedRevShare(revShare);
                         if (typeof licensePrice === 'number') setSelectedLicensePrice(licensePrice);
+                        if (typeof aiLearning === 'boolean') setSelectedAiLearning(aiLearning);
                       }}
                     />
                   );
@@ -900,10 +1004,10 @@ License Type: ${result.licenseType}`;
           chatAgent.addCompleteMessage({
             role: 'agent',
             ts: Date.now(),
-            text: `Permohonan review terkirim ✅\nCID: ${cid}`,
+            text: `Permohonan review terkirim ��\nCID: ${cid}`,
             links: [{ text: 'Lihat berkas review di IPFS', url }]
           });
-          setToast('Review submitted ���');
+          setToast('🎉 Review submitted');
         }}
       />
     </div>

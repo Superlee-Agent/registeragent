@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { AdvancedAnalysisResult, SimpleRecommendation } from '@/types/ai-detection';
+import { getChatModel } from '@/lib/openai';
 
 export class FallbackAIDetection {
   private openai: OpenAI;
@@ -13,7 +14,7 @@ export class FallbackAIDetection {
   async analyzeImageBasic(imageUrl: string): Promise<{ analysis: AdvancedAnalysisResult; recommendation: SimpleRecommendation }> {
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: getChatModel(),
         messages: [
           {
             role: "user",
@@ -27,12 +28,11 @@ export class FallbackAIDetection {
 4. Recommended license type (commercial/nonCommercial/remix)
 Return JSON only with keys: isAIGenerated, confidence, qualityScore, ipEligible, recommendedLicense, reasoning.`
               },
-              { type: "image_url", image_url: { url: imageUrl } }
+              { type: "image_url", image_url: { url: imageUrl, detail: 'low' } }
             ]
           }
         ],
-        max_tokens: 300,
-        temperature: 0.2,
+        temperature: 1,
         response_format: { type: "json_object" }
       });
 
@@ -49,6 +49,13 @@ Return JSON only with keys: isAIGenerated, confidence, qualityScore, ipEligible,
       const computedScore = score * 10;
       let ipEligible = typeof result.ipEligible === 'boolean' ? result.ipEligible : computedScore >= 60;
       if (computedScore >= 60 && !isAIGenerated) ipEligible = true; // keep consistent
+
+      // Policy: human-created defaults to Commercial Remix
+      const primary: 'commercial' | 'nonCommercial' | 'remix' = isAIGenerated ? (result.recommendedLicense || 'nonCommercial') : 'remix';
+      const mintingFee = primary === 'remix' ? (score > 5 ? 50 : 0) : (primary === 'commercial' ? 50 : 0);
+      const commercialRevShare = primary === 'remix' ? 10 : (primary === 'commercial' ? 10 : 0);
+      const derivativesAllowed = primary === 'remix';
+      const commercialUse = primary === 'remix' || primary === 'commercial';
 
       // Convert simple result to advanced format
       const analysis: AdvancedAnalysisResult = {
@@ -83,19 +90,19 @@ Return JSON only with keys: isAIGenerated, confidence, qualityScore, ipEligible,
           requirements: ipEligible ? [] : ["Improve image quality or authenticity"]
         },
         licenseRecommendation: {
-          primary: result.recommendedLicense || 'nonCommercial',
+          primary,
           confidence: 0.7,
-          reasoning: result.reasoning || "Basic recommendation based on simple analysis",
+          reasoning: result.reasoning || (isAIGenerated ? "AI content: restrict AI training; recommend remix if allowed" : "Human content: default to Commercial Remix (commercial + derivatives)"),
           aiLearningAllowed: !isAIGenerated,
           robotTerms: {
             userAgent: '*',
             allow: isAIGenerated ? "Disallow: /" : "Allow: /"
           },
           suggestedTerms: {
-            mintingFee: result.recommendedLicense === 'commercial' ? 50 : 0,
-            commercialRevShare: result.recommendedLicense === 'commercial' ? 10 : 0,
-            derivativesAllowed: result.recommendedLicense === 'remix',
-            commercialUse: result.recommendedLicense === 'commercial',
+            mintingFee,
+            commercialRevShare,
+            derivativesAllowed,
+            commercialUse,
             aiTrainingRestricted: isAIGenerated
           }
         },
@@ -115,9 +122,8 @@ Return JSON only with keys: isAIGenerated, confidence, qualityScore, ipEligible,
           `✅ Human content detected (quality: ${analysis.qualityAssessment.overall}/10)`,
         action: analysis.aiDetection.isAIGenerated ?
           'Register with AI restrictions' :
-          'Register with recommended license',
-        license: analysis.licenseRecommendation.primary === 'commercial' ? 'Commercial Use' :
-                analysis.licenseRecommendation.primary === 'remix' ? 'Remix License' : 'Non-Commercial',
+          'Register with Commercial Remix',
+        license: analysis.aiDetection.isAIGenerated ? (analysis.licenseRecommendation.primary === 'remix' ? 'Commercial Remix' : 'Non-Commercial') : 'Commercial Remix',
         aiLearning: analysis.aiDetection.isAIGenerated ? '🚫 Restricted (basic protection)' : '✅ Your choice'
       };
 

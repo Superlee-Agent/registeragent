@@ -1,11 +1,10 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 export function middleware(request: NextRequest) {
   // Create response
   const response = NextResponse.next();
 
-  // Content Security Policy
+  // Content Security Policy (relaxed for dev preview embedding)
   const csp = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-eval' 'unsafe-inline' cdn.jsdelivr.net",
@@ -16,14 +15,15 @@ export function middleware(request: NextRequest) {
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    "frame-ancestors 'none'",
+    "frame-ancestors *",
     "upgrade-insecure-requests"
   ].join('; ');
 
   // Security headers
   response.headers.set('Content-Security-Policy', csp);
   response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  response.headers.set('X-Frame-Options', 'DENY');
+  // Remove X-Frame-Options to allow embedding in Builder preview iframe
+  response.headers.delete('X-Frame-Options');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Referrer-Policy', 'origin-when-cross-origin');

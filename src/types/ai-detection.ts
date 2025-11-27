@@ -7,7 +7,7 @@ export interface AdvancedAnalysisResult {
     aiModel?: string;
     learningRestriction: 'disabled' | 'enabled' | 'conditional';
   };
-  
+
   // Penilaian Kualitas
   qualityAssessment: {
     overall: number;
@@ -25,7 +25,7 @@ export interface AdvancedAnalysisResult {
       concept: number;
     };
   };
-  
+
   // Kelayakan IP
   ipEligibility: {
     isEligible: boolean;
@@ -34,7 +34,7 @@ export interface AdvancedAnalysisResult {
     risks: string[];
     requirements: string[];
   };
-  
+
   // Rekomendasi Lisensi dengan AI Learning Control
   licenseRecommendation: {
     primary: 'commercial' | 'nonCommercial' | 'remix';
@@ -53,7 +53,7 @@ export interface AdvancedAnalysisResult {
       aiTrainingRestricted: boolean;
     };
   };
-  
+
   // Content metadata
   content: {
     type: string;
@@ -61,6 +61,11 @@ export interface AdvancedAnalysisResult {
     description: string;
     tags: string[];
     marketValue: 'low' | 'medium' | 'high' | 'premium';
+    // Policy-relevant flags
+    containsHumanFace?: boolean;
+    faceCount?: number;
+    famousPersonDetected?: boolean;
+    famousBrandOrCharacterDetected?: boolean;
   };
 }
 

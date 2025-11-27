@@ -6,8 +6,6 @@ import {
   imageToBase64,
   isOpenAIAvailable
 } from "../openai";
-import type { RagIndex } from "@/lib/rag";
-import { embedTexts, topK } from "@/lib/rag";
 
 /** ===== Types ===== */
 export type ConversationState =
@@ -22,7 +20,6 @@ export type SuperleeContext = {
   state: ConversationState;
   flow: "register" | null;
   aiEnabled: boolean;
-  ragIndex?: RagIndex | null;
   lastUserMessage?: string;
   registerData?: {
     file?: File;
@@ -336,18 +333,8 @@ export class SuperleeEngine {
     const basic = /User wants to register IP|Initial greeting/i.test(context);
     if (!allowSmart && basic) return fallback;
 
-    let ctx = context;
     try {
-      if (this.context.ragIndex && this.context.lastUserMessage && /whitepaper|story\b|architecture|execution layer|proof of creativity|consensus/i.test(this.context.lastUserMessage)) {
-        const [q] = await embedTexts([this.context.lastUserMessage]);
-        const hits = topK(this.context.ragIndex, q, 5);
-        const snippets = hits.map(h => h.text.slice(0, 600)).join('\n---\n');
-        ctx = `${context}\n\nRelevant docs:\n${snippets}`;
-      }
-    } catch {}
-
-    try {
-      const response = await generateContextualResponse(fallback, ctx);
+      const response = await generateContextualResponse(fallback, context);
       return response || fallback;
     } catch {
       return fallback;
@@ -382,7 +369,6 @@ export class SuperleeEngine {
 
   getContext() { return this.context; }
   setContext(context: SuperleeContext) { this.context = context; }
-  setRagIndex(index: RagIndex | null) { this.context.ragIndex = index; }
 }
 
 export const superleeEngine = new SuperleeEngine();
